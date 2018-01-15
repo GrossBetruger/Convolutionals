@@ -62,7 +62,7 @@ dg = DataSetGenerator("./train")
 
 epochs = 50
 batchSize = 10
-git
+
 saver = tf.train.Saver()
 model_save_path="./saved model v2/"
 model_name='model'
