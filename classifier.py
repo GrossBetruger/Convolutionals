@@ -60,9 +60,9 @@ with tf.name_scope('accuracy') as scope:
 dg = DataSetGenerator("./train")
 
 
-epochs = 10
+epochs = 50
 batchSize = 10
-
+git
 saver = tf.train.Saver()
 model_save_path="./saved model v2/"
 model_name='model'
