@@ -68,7 +68,7 @@ model_save_path="./saved model v2/"
 model_name='model'
 
 
-mode = "train"
+mode = "test"
 
 
 def to_pred(probas):
@@ -77,6 +77,11 @@ def to_pred(probas):
 
 def smooth(proba):
     return 0 if proba < .5 else 1
+
+
+def is_certain(probas, confidence):
+    return any(x >= confidence for x in probas)
+
 
 
 with tf.Session() as sess:
@@ -116,21 +121,22 @@ with tf.Session() as sess:
             for index in range(len(imgs)):
                 model_pred = sess.run([prediction], feed_dict={input_img: imgs})[0][index]
                 print model_pred
-                smoothed = to_pred(model_pred)
-                print "predict", smoothed
-                print "labels", labels[index]
-                if list(labels[index]) == smoothed:
-                    print True
-                    count_true += 1
-                else:
-                    print False
-                    count_false += 1
-                print
+                if is_certain(model_pred, .53):
+                    smoothed = to_pred(model_pred)
+                    print "predict", smoothed
+                    print "labels", labels[index]
+                    if list(labels[index]) == smoothed:
+                        print True
+                        count_true += 1
+                    else:
+                        print False
+                        count_false += 1
+                    print
 
-                print "true count", count_true
-                print "false count", count_false
-                total = count_false + count_true
-                print "precision", float(count_true)/total
+                    print "true count", count_true
+                    print "false count", count_false
+                    total = count_false + count_true
+                    print "precision", float(count_true)/total
             # print labels[0]
             # print to_pred(sess.run([prediction], feed_dict={input_img: imgs})[0][0])
             # print
