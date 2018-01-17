@@ -1,7 +1,9 @@
+import datetime
+
 from cad_data_set_generator import prepare_training_set
 import tensorflow as tf
 import numpy as np
-
+import os
 
 
 def loss(logits, labels):
@@ -39,9 +41,23 @@ optimizer=tf.train.AdamOptimizer().minimize(cost)
 
 training_set = prepare_training_set("train_cad")
 
+saver = tf.train.Saver()
+model_save_path="./model_3d_conv/"
+model_name='CADClassifier'
+
+
 
 with tf.Session() as sess:
     tf.global_variables_initializer().run()
+
+    filename = "./summary_log_CAD/run" + datetime.datetime.now().strftime("%Y-%m-%d--%H-%M-%s")
+
+    if os.path.exists(model_save_path + 'checkpoint'):
+        # saver = tf.train.import_meta_graph('./saved '+modelName+'/model.ckpt.meta')
+        saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
+    writer = tf.summary.FileWriter(filename, sess.graph)
+
+    step = int()
     for data, label in training_set:
         # print label
         # print [[data]]*10
@@ -49,4 +65,8 @@ with tf.Session() as sess:
         data = [data.reshape(data.shape[0], data.shape[1], data.shape[2], 1)] * batch_size
         print "labels:", [label] * batch_size
         print sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: [label] * batch_size})
+        step += 1
+        if step % 3 == 0:
+            saver.save(sess, model_save_path + model_name, global_step=step)
+
         # print(i,error)
