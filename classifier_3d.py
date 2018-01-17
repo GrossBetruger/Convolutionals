@@ -10,10 +10,8 @@ def loss(logits, labels):
 
     return tf.reduce_mean(cross_entropy, name='xentropy_mean')
 
-
-
 TARGET_ERROR_RATE = 0.001
-batch_size = 10
+batch_size = 1
 number_of_targets = 2
 inputs=tf.placeholder('float32',[batch_size, 30, 30, 30, 1],name='Input')
 target_labels = tf.placeholder(dtype='float', shape=[None, number_of_targets], name="Targets")
@@ -49,6 +47,6 @@ with tf.Session() as sess:
         # print [[data]]*10
         data = np.array(data)
         data = [data.reshape(data.shape[0], data.shape[1], data.shape[2], 1)] * batch_size
-        print [label] * 10
-        print sess.run([softmax1],feed_dict={inputs: data, target_labels: [label] * batch_size})
+        print "labels:", [label] * batch_size
+        print sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: [label] * batch_size})
         # print(i,error)
