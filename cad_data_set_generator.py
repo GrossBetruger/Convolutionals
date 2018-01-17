@@ -1,5 +1,6 @@
 import scipy.io as spio
 import os
+import numpy as np
 
 
 def matlab_file_to_cad(matlab_file_path):
@@ -9,9 +10,11 @@ def matlab_file_to_cad(matlab_file_path):
 def prepare_training_set(train_dir):
     labels = os.listdir(train_dir)
     for i, label in enumerate(labels):
+        l = np.zeros(len(labels), dtype=int)
+        l[i] = 1
         for raw_data_path in os.listdir(os.path.join(train_dir, label)):
             cad = matlab_file_to_cad(os.path.join(train_dir, label, raw_data_path))
-            yield [cad, i]
+            yield [cad, l]
 
 
 def prepare_test_set(test_dir):
