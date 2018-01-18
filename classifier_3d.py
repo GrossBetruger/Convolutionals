@@ -41,7 +41,7 @@ optimizer=tf.train.AdamOptimizer().minimize(cost)
 
 
 print "generating data set, this may take a while..."
-training_set = list(prepare_training_set("train_cad"))
+training_set = list(prepare_training_set("train_cad", batch_size))
 print "shuffling data set"
 shuffle(training_set)
 
@@ -50,6 +50,7 @@ model_save_path="./model_3d_conv/"
 model_name='CADClassifier'
 
 
+mode = raw_input("train/test?\n").lower()
 
 with tf.Session() as sess:
     tf.global_variables_initializer().run()
@@ -63,20 +64,27 @@ with tf.Session() as sess:
     writer = tf.summary.FileWriter(filename, sess.graph)
 
     step = 1
-    for data, label in training_set:
-        # print label
-        # print [[data]]*10
-        data = np.array(data)
-        data = [data.reshape(data.shape[0], data.shape[1], data.shape[2], 1)] * batch_size
+    if mode == "train":
 
-        print "\ntraining... step: ", step
-        print "labels:", [label] * batch_size
-        err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: [label] * batch_size})
-        print "error rate:", err
-        step += 1
-        if step % 3 == 0:
-            print "saving model..."
-            saver.save(sess, model_save_path + model_name)
-            print "model saved"
+        for data, label in training_set:
+                print "\ntraining... step: ", step
+                print "labels:", label
+                err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
+                print "error rate:", err
+                step += 1
+                if step % 3 == 0:
+                    print "saving model..."
+                    saver.save(sess, model_save_path + model_name)
+                    print "model saved"
+
+    elif mode == "test":
+        for data, label in training_set:
+            print "\ntesting... step: ", step
+            print "labels:", label
+            print sess.run([softmax1], feed_dict={inputs: data})
+            step += 1
+
+    else:
+        raise Exception("invalid mode")
 
         # print(i,error)
