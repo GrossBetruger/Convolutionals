@@ -225,6 +225,8 @@ with tf.Session() as sess:
             raw_pred = sess.run([softmax1], feed_dict={inputs: data})[0][0]
             print "raw prediction", raw_pred
             pred = to_pred(raw_pred)
+            target = list(label[0])
+            print "LABELS:", target
 
             if pred == target:
                 true_count += 1
@@ -235,7 +237,6 @@ with tf.Session() as sess:
             print "false count", false_count
             total = false_count + true_count
             print "precision", float(true_count) / total
-
             step += 1
 
     else:
