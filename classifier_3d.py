@@ -6,6 +6,10 @@ import operator
 import tensorflow as tf
 import os
 
+MEAN = .1
+
+STDDEV = 0.02
+
 FILTER_WIDTH = 5
 
 FILTER_HEIGHT = 5
@@ -39,10 +43,10 @@ def flatten(input_layer):
 def attach_dense_layer(input_layer, size, summary=False):
     # with tf.name_scope("Dense") as scope:
     input_size = input_layer.get_shape().as_list()[-1]
-    weights = tf.Variable(tf.random_normal([input_size, size]), name='dense_weigh')
+    weights = tf.Variable(tf.random_normal([input_size, size], stddev=STDDEV, mean=MEAN), name='dense_weigh')
     if summary:
         tf.summary.histogram(weights.name, weights)
-    biases = tf.Variable(tf.random_normal([size]), name='dense_biases')
+    biases = tf.Variable(tf.random_normal([size], stddev=STDDEV, mean=MEAN), name='dense_biases')
     dense = tf.matmul(input_layer, weights) + biases
     return dense
 
@@ -72,8 +76,8 @@ inputs=tf.placeholder('float32', [batch_size, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, 
 target_labels = tf.placeholder(dtype='float', shape=[None, number_of_targets], name="Targets")
 output_size = 8
 # maybe depth of filter should be 30
-weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, output_size], stddev=0.02), name="Weight1")
-biases1 = tf.Variable(tf.random_normal([output_size], stddev=0.02),name='conv_biases')
+weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, output_size], stddev=STDDEV, mean=MEAN), name="Weight1")
+biases1 = tf.Variable(tf.random_normal([output_size], stddev=STDDEV, mean=MEAN), name='conv_biases')
 conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, FILTER_DEPTH, 1, 1, 1], padding="SAME") + biases1
 relu1 = tf.nn.relu(conv1)
 # skipping maxpool
@@ -122,12 +126,12 @@ with tf.Session() as sess:
     if mode == "train":
 
         for data, label in training_set:
-                print "\ntraining... step: ", step
-                print "labels:", label
+                # print "\ntraining... step: ", step
+                # print "labels:", label
                 err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
                 print "error rate:", str(err)
                 step += 1
-                if step % 3 == 0:
+                if step % 10 == 0:
                     print "saving model..."
                     saver.save(sess, model_save_path + model_name)
                     print "model saved"
