@@ -77,7 +77,7 @@ biases1 = tf.Variable(tf.random_normal([output_size], stddev=0.02),name='conv_bi
 conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, FILTER_DEPTH, 1, 1, 1], padding="SAME") + biases1
 relu1 = tf.nn.relu(conv1)
 # skipping maxpool
-# maxpool1 = tf.nn.max_pool3d(relu1, ksize=[2, 2, 2, output_size, output_size], strides=[1, 1, 1, 1, 1], padding="SAME")
+maxpool1 = tf.nn.max_pool3d(relu1, ksize=[30, 2, 2, output_size, output_size], strides=[1, 30, 2, 2, 1], padding="SAME")
 
 fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
 flat_layer1 = flatten(fully_connected1)
