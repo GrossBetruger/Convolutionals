@@ -151,8 +151,6 @@ except IndexError:
 naive_optimization = True if optimization_model == "naive" else False
 cost, optimizer = create_optimization(target_labels=target_labels,
                                       dense_layer=dense_layer2, naive=naive_optimization)
-cost, optimizer = create_optimization(target_labels=target_labels,
-                                      dense_layer=dense_layer2, naive=naive_optimization)
 
 # if naive_optimization:
 #     cost = tf.squared_difference(target_labels, dense_layer2)
