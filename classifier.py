@@ -9,11 +9,14 @@ import os
 with tf.name_scope("Input") as scope:
     input_img = tf.placeholder(dtype='float', shape=[None, 128, 128, 1], name="input")
 
+
 with tf.name_scope("Target") as scope:
     target_labels = tf.placeholder(dtype='float', shape=[None, 2], name="Targets")
 
+
 with tf.name_scope("Keep_prob_input") as scope:
     keep_prob = tf.placeholder(dtype='float',name='keep_prob')
+
 
 nb = NetworkBuilder()
 
