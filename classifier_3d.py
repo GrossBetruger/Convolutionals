@@ -5,6 +5,8 @@ from functools import reduce
 import operator
 import tensorflow as tf
 import os
+import sys
+
 
 MEAN = 0.0
 
@@ -25,6 +27,8 @@ CAD_HEIGHT = 30
 CAD_DEPTH = 30
 
 OUTPUT_SIZE = 64
+
+LEARNING_RATE = 0.4
 
 
 def loss(logits, labels):
@@ -78,26 +82,28 @@ target_labels = tf.placeholder(dtype='float', shape=[None, number_of_targets], n
 # maybe depth of filter should be 30
 weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
 biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, FILTER_DEPTH, 1, 1, 1], padding="SAME") + biases1
+conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
 relu1 = tf.nn.relu(conv1)
 # skipping maxpool
 # maxpool1 = tf.nn.max_pool3d(relu1, ksize=[2, 2, 2, OUTPUT_SIZE, OUTPUT_SIZE], strides=[1, 2, 2, 2, 1], padding="SAME")
 
-fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
-flat_layer1 = flatten(fully_connected1)
+# fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
+flat_layer1 = flatten(relu1)
+dense_layer1 = attach_dense_layer(flat_layer1, 32)
+
 # sigmoid2 = attach_sigmoid_layer(flat_layer1)
-relu2 = tf.nn.relu(flat_layer1)
-dense_layer1 = attach_dense_layer(relu2, number_of_targets)
-softmax1 = tf.nn.softmax(dense_layer1)
+relu2 = tf.nn.relu(dense_layer1)
+dense_layer2 = attach_dense_layer(relu2, number_of_targets)
+softmax1 = tf.nn.softmax(dense_layer2)
 
 
 cost=tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
 cost=tf.reduce_mean(cost)
-optimizer=tf.train.AdamOptimizer().minimize(cost)
+optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 
 # cost=tf.squared_difference(target_labels, softmax1)
 # cost=tf.reduce_mean(cost)
-# optimizer=tf.train.AdamOptimizer().minimize(cost)
+# optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 
 
 print "generating data set, this may take a while..."
@@ -110,7 +116,7 @@ model_save_path="./model_3d_conv_v11/"
 model_name='CADClassifier'
 
 
-mode = raw_input("train/test?\n").lower()
+mode = sys.argv[1]
 
 with tf.Session() as sess:
     tf.global_variables_initializer().run()
