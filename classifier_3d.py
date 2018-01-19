@@ -6,9 +6,9 @@ import operator
 import tensorflow as tf
 import os
 
-MEAN = 0.02
+MEAN = 0.0
 
-STDDEV = 0.02
+STDDEV = 0.05
 
 FILTER_WIDTH = 5
 
@@ -24,6 +24,7 @@ CAD_HEIGHT = 30
 
 CAD_DEPTH = 30
 
+OUTPUT_SIZE = 64
 
 
 def loss(logits, labels):
@@ -74,14 +75,13 @@ number_of_targets = 2
 inputs=tf.placeholder('float32', [batch_size, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
 # maybe simplify targets placeholder
 target_labels = tf.placeholder(dtype='float', shape=[None, number_of_targets], name="Targets")
-output_size = 8
 # maybe depth of filter should be 30
-weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, output_size], stddev=STDDEV, mean=MEAN), name="Weight1")
-biases1 = tf.Variable(tf.random_normal([output_size], stddev=STDDEV, mean=MEAN), name='conv_biases')
+weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
+biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
 conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, FILTER_DEPTH, 1, 1, 1], padding="SAME") + biases1
 relu1 = tf.nn.relu(conv1)
 # skipping maxpool
-maxpool1 = tf.nn.max_pool3d(relu1, ksize=[30, 2, 2, output_size, output_size], strides=[1, 30, 2, 2, 1], padding="SAME")
+maxpool1 = tf.nn.max_pool3d(relu1, ksize=[30, 2, 2, OUTPUT_SIZE, OUTPUT_SIZE], strides=[1, 30, 2, 2, 1], padding="SAME")
 
 fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
 flat_layer1 = flatten(fully_connected1)
@@ -91,13 +91,13 @@ dense_layer1 = attach_dense_layer(relu2, number_of_targets)
 softmax1 = tf.nn.softmax(dense_layer1)
 
 
-# cost=tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
-# cost=tf.reduce_mean(cost)
-# optimizer=tf.train.AdamOptimizer().minimize(cost)
-
-cost=tf.squared_difference(target_labels, softmax1)
+cost=tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
 cost=tf.reduce_mean(cost)
 optimizer=tf.train.AdamOptimizer().minimize(cost)
+
+# cost=tf.squared_difference(target_labels, softmax1)
+# cost=tf.reduce_mean(cost)
+# optimizer=tf.train.AdamOptimizer().minimize(cost)
 
 
 print "generating data set, this may take a while..."
