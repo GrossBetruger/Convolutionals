@@ -34,14 +34,6 @@ OUTPUT_SIZE = 8
 
 LEARNING_RATE = 0.08
 
-
-def loss(logits, labels):
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
-        logits=logits, labels=labels, name='cross_entropy_per_example')
-
-    return tf.reduce_mean(cross_entropy, name='xentropy_mean')
-
-
 def flatten(input_layer):
     # with tf.name_scope("Flatten") as scope:
     input_size = input_layer.get_shape().as_list()
@@ -171,13 +163,13 @@ cost, optimizer = create_optimization(target_labels=target_labels,
 #     cost = tf.reduce_mean(cost)
 #     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 
-# training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
-training_set = smart_data_fetcher("dump_training_CADs")
+training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS, limit=500))
+# training_set = smart_data_fetcher("dump_training_CADs")
 print "training set size:", len(training_set)
 shuffle(training_set)
 
 saver = tf.train.Saver()
-model_save_path="./model_3d_conv_v11/"
+model_save_path="./model_3d_conv_v2/"
 model_name='CADClassifier'
 
 
@@ -185,25 +177,42 @@ model_name='CADClassifier'
 with tf.Session() as sess:
     tf.global_variables_initializer().run()
 
-    filename = "./summary_log_CAD/run" + datetime.datetime.now().strftime("%Y-%m-%d--%H-%M-%s")
+    # filename = "./summary_log_CAD/run" + datetime.datetime.now().strftime("%Y-%m-%d--%H-%M-%s")
 
     if os.path.exists(model_save_path + 'checkpoint'):
         saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
 
-    writer = tf.summary.FileWriter(filename, sess.graph)
+    # writer = tf.summary.FileWriter(filename, sess.graph)
 
     step = 1
     if mode == "train":
-
+        true_count = int()
+        false_count = int()
         for data, label in training_set:
                 # print "\ntraining... step: ", step
                 # print "labels:", label
                 err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
                 print "error rate:", str(err)
+                print "prediction:", sess.run([softmax1], feed_dict={inputs: data})
+                raw_pred = sess.run([softmax1], feed_dict={inputs: data})[0][0]
+                print "raw prediction", raw_pred
+                pred = to_pred(raw_pred)
+                target = list(label[0])
+                print "LABELS:", target
+
+                if pred == target:
+                    true_count += 1
+                else:
+                    false_count += 1
+
+                print "true count", true_count
+                print "false count", false_count
+                total = false_count + true_count
+                print "precision", float(true_count) / total
                 step += 1
                 if step % SAVING_INTERVAL == 0:
                     print "saving model..."
-                    saver.save(sess, model_save_path + model_name)
+                    saver.save(sess, model_save_path + model_name, global_step=step)
                     print "model saved"
 
     elif mode == "test":
