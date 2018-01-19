@@ -7,13 +7,16 @@ def matlab_file_to_cad(matlab_file_path):
     return spio.loadmat(matlab_file_path, squeeze_me=True).get('instance')
 
 
-def prepare_training_set(train_dir, limit=None):
+def prepare_training_set(train_dir, batch_size, limit=None):
     labels = os.listdir(train_dir)
     for i, label in enumerate(labels):
         l = np.zeros(len(labels), dtype=int)
         l[i] = 1
+        l = [l] * batch_size
         for raw_data_path in os.listdir(os.path.join(train_dir, label))[:limit]:
             cad = matlab_file_to_cad(os.path.join(train_dir, label, raw_data_path))
+            cad = np.array(cad)
+            cad = [cad.reshape(cad.shape[0], cad.shape[1], cad.shape[2], 1)] * batch_size
             yield [cad, l]
 
 
