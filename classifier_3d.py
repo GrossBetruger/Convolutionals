@@ -6,6 +6,21 @@ import operator
 import tensorflow as tf
 import os
 
+FILTER_WIDTH = 5
+
+FILTER_HEIGHT = 5
+
+FILTER_DEPTH = 5
+
+CHANNELS = 1
+
+CAD_WIDTH = 30
+
+CAD_HEIGHT = 30
+
+CAD_DEPTH = 30
+
+
 
 def loss(logits, labels):
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
@@ -52,14 +67,14 @@ def is_certain(probas, confidence):
 TARGET_ERROR_RATE = 0.001
 batch_size = 1
 number_of_targets = 2
-inputs=tf.placeholder('float32',[batch_size, 30, 30, 30, 1],name='Input')
+inputs=tf.placeholder('float32', [batch_size, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
+# maybe simplify targets placeholder
 target_labels = tf.placeholder(dtype='float', shape=[None, number_of_targets], name="Targets")
-
-
 output_size = 8
-weight1 = tf.Variable(tf.random_normal(shape=[5, 5, 5, 1, output_size]),name="Weight1")
-biases1 = tf.Variable(tf.random_normal([output_size]),name='conv_biases')
-conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
+# maybe depth of filter should be 30
+weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, output_size], stddev=0.02), name="Weight1")
+biases1 = tf.Variable(tf.random_normal([output_size], stddev=0.02),name='conv_biases')
+conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, FILTER_DEPTH, 1, 1, 1], padding="SAME") + biases1
 relu1 = tf.nn.relu(conv1)
 # skipping maxpool
 # maxpool1 = tf.nn.max_pool3d(relu1, ksize=[2, 2, 2, output_size, output_size], strides=[1, 1, 1, 1, 1], padding="SAME")
@@ -87,7 +102,7 @@ print "shuffling data set"
 shuffle(training_set)
 
 saver = tf.train.Saver()
-model_save_path="./model_3d_conv_v10/"
+model_save_path="./model_3d_conv_v11/"
 model_name='CADClassifier'
 
 
