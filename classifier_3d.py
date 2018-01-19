@@ -6,6 +6,8 @@ import operator
 import tensorflow as tf
 import os
 import sys
+import pickle
+
 
 SAVING_INTERVAL = 10
 
@@ -27,9 +29,9 @@ CAD_HEIGHT = 30
 
 CAD_DEPTH = 30
 
-OUTPUT_SIZE = 64
+OUTPUT_SIZE = 8
 
-LEARNING_RATE = 0.4
+LEARNING_RATE = 0.08
 
 
 def loss(logits, labels):
@@ -73,6 +75,28 @@ def to_pred(probas):
 def is_certain(probas, confidence):
     return any(x >= confidence for x in probas)
 
+def serialize(data, fname):
+    with open(fname, "wb") as f:
+        pickle.dump(data, f)
+
+
+def unserialize(fname):
+    with open(fname) as f:
+        return pickle.load(f)
+
+
+def smart_data_fetcher(dump_path):
+    if os.path.exists(dump_path):
+        return unserialize(dump_path)
+    else:
+        print "creating training set"
+        training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
+        print "shuffling data set"
+        shuffle(training_set)
+        print "caching data set"
+        serialize(training_set, dump_path)
+        return training_set
+
 
 TARGET_ERROR_RATE = 0.001
 batch_size = 1
@@ -90,7 +114,7 @@ relu1 = tf.nn.relu(conv1)
 
 # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
 flat_layer1 = flatten(relu1)
-dense_layer1 = attach_dense_layer(flat_layer1, 32)
+dense_layer1 = attach_dense_layer(flat_layer1, 8)
 
 # sigmoid2 = attach_sigmoid_layer(flat_layer1)
 relu2 = tf.nn.relu(dense_layer1)
@@ -98,14 +122,15 @@ dense_layer2 = attach_dense_layer(relu2, number_of_targets)
 softmax1 = tf.nn.softmax(dense_layer2)
 
 
-cost=tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
-cost=tf.reduce_mean(cost)
-optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
-
+# cost=tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
+# cost=tf.reduce_mean(cost)
+# optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+#
 # cost=tf.squared_difference(target_labels, softmax1)
 # cost=tf.reduce_mean(cost)
 # optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 
+naive_optimization = True
 
 try:
     mode = sys.argv[1]
@@ -113,8 +138,18 @@ except IndexError:
     print "\nUSAGE: python classifier_3d.py <train/test>\n"
     quit()
 
+if naive_optimization:
+    cost = tf.squared_difference(target_labels, softmax1)
+    cost = tf.reduce_mean(cost)
+    optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+else:
+    cost = tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
+    cost = tf.reduce_mean(cost)
+    optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+
 print "generating data set, this may take a while..."
-training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
+# training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
+training_set = smart_data_fetcher("dump_training_CADs")
 print "shuffling data set"
 shuffle(training_set)
 
