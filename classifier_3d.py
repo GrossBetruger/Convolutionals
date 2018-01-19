@@ -8,6 +8,7 @@ import os
 import sys
 import pickle
 
+WINDOWS_SIZE = 2
 
 SAVING_INTERVAL = 10
 
@@ -64,6 +65,17 @@ def attach_sigmoid_layer(input_layer):
     return tf.nn.sigmoid(input_layer)
 
 
+def create_optimization(native=False):
+    if naive_optimization:
+        cost = tf.squared_difference(target_labels, dense_layer2)
+        cost = tf.reduce_mean(cost)
+        optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+    else:
+        cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=target_labels)
+        cost = tf.reduce_mean(cost)
+        optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+    return cost, optimizer
+
 def smooth(proba):
     return 0 if proba < .5 else 1
 
@@ -86,10 +98,12 @@ def unserialize(fname):
 
 
 def smart_data_fetcher(dump_path):
+    print "generating data set, please wait..."
     if os.path.exists(dump_path):
+        print "fetching from cache..."
         return unserialize(dump_path)
     else:
-        print "creating training set"
+        print "creating training set..."
         training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
         print "shuffling data set"
         shuffle(training_set)
@@ -110,10 +124,11 @@ biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN),
 conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
 relu1 = tf.nn.relu(conv1)
 # skipping maxpool
-# maxpool1 = tf.nn.max_pool3d(relu1, ksize=[2, 2, 2, OUTPUT_SIZE, OUTPUT_SIZE], strides=[1, 2, 2, 2, 1], padding="SAME")
+maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
+                            strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
 # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
-flat_layer1 = flatten(relu1)
+flat_layer1 = flatten(maxpool1)
 dense_layer1 = attach_dense_layer(flat_layer1, 8)
 
 # sigmoid2 = attach_sigmoid_layer(flat_layer1)
@@ -130,27 +145,31 @@ softmax1 = tf.nn.softmax(dense_layer2)
 # cost=tf.reduce_mean(cost)
 # optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 
-naive_optimization = True
+
+
 
 try:
     mode = sys.argv[1]
+    optimization_model = sys.argv[2]
 except IndexError:
-    print "\nUSAGE: python classifier_3d.py <train/test>\n"
+    print "\nUSAGE: python classifier_3d.py <train/test> <naive/cross>\n"
     quit()
 
-if naive_optimization:
-    cost = tf.squared_difference(target_labels, softmax1)
-    cost = tf.reduce_mean(cost)
-    optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
-else:
-    cost = tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
-    cost = tf.reduce_mean(cost)
-    optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+naive_optimization = True if optimization_model == "naive" else False
+cost, optimizer = create_optimization(naive_optimization)
+cost, optimizer = create_optimization(naive_optimization)
 
-print "generating data set, this may take a while..."
+# if naive_optimization:
+#     cost = tf.squared_difference(target_labels, dense_layer2)
+#     cost = tf.reduce_mean(cost)
+#     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+# else:
+#     cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=target_labels)
+#     cost = tf.reduce_mean(cost)
+#     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+
 # training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
 training_set = smart_data_fetcher("dump_training_CADs")
-print "shuffling data set"
 shuffle(training_set)
 
 saver = tf.train.Saver()
