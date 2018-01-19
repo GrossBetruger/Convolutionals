@@ -7,6 +7,7 @@ import tensorflow as tf
 import os
 import sys
 
+SAVING_INTERVAL = 10
 
 MEAN = 0.0
 
@@ -106,6 +107,12 @@ optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 # optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 
 
+try:
+    mode = sys.argv[1]
+except IndexError:
+    print "\nUSAGE: python classifier_3d.py <train/test>\n"
+    quit()
+
 print "generating data set, this may take a while..."
 training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
 print "shuffling data set"
@@ -116,7 +123,6 @@ model_save_path="./model_3d_conv_v11/"
 model_name='CADClassifier'
 
 
-mode = sys.argv[1]
 
 with tf.Session() as sess:
     tf.global_variables_initializer().run()
@@ -137,7 +143,7 @@ with tf.Session() as sess:
                 err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
                 print "error rate:", str(err)
                 step += 1
-                if step % 10 == 0:
+                if step % SAVING_INTERVAL == 0:
                     print "saving model..."
                     saver.save(sess, model_save_path + model_name)
                     print "model saved"
