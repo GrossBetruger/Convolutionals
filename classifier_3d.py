@@ -65,16 +65,17 @@ def attach_sigmoid_layer(input_layer):
     return tf.nn.sigmoid(input_layer)
 
 
-def create_optimization(native=False):
-    if naive_optimization:
-        cost = tf.squared_difference(target_labels, dense_layer2)
+def create_optimization(target_labels, dense_layer, naive=False):
+    if naive:
+        cost = tf.squared_difference(target_labels, dense_layer)
         cost = tf.reduce_mean(cost)
         optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
     else:
-        cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=target_labels)
+        cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer, labels=target_labels)
         cost = tf.reduce_mean(cost)
         optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
     return cost, optimizer
+
 
 def smooth(proba):
     return 0 if proba < .5 else 1
@@ -156,8 +157,10 @@ except IndexError:
     quit()
 
 naive_optimization = True if optimization_model == "naive" else False
-cost, optimizer = create_optimization(naive_optimization)
-cost, optimizer = create_optimization(naive_optimization)
+cost, optimizer = create_optimization(target_labels=target_labels,
+                                      dense_layer=dense_layer2, naive=naive_optimization)
+cost, optimizer = create_optimization(target_labels=target_labels,
+                                      dense_layer=dense_layer2, naive=naive_optimization)
 
 # if naive_optimization:
 #     cost = tf.squared_difference(target_labels, dense_layer2)
@@ -170,6 +173,7 @@ cost, optimizer = create_optimization(naive_optimization)
 
 # training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
 training_set = smart_data_fetcher("dump_training_CADs")
+print "training set size:", len(training_set)
 shuffle(training_set)
 
 saver = tf.train.Saver()
