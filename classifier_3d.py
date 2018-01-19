@@ -6,7 +6,7 @@ import operator
 import tensorflow as tf
 import os
 
-MEAN = .1
+MEAN = 0.02
 
 STDDEV = 0.02
 
@@ -144,6 +144,7 @@ with tf.Session() as sess:
             target = "labels:", label[0]
 
             raw_pred = sess.run([softmax1], feed_dict={inputs: data})[0][0]
+            print "raw prediction", raw_pred
             pred = to_pred(raw_pred)
 
             if pred == target:
