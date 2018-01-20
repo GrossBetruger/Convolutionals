@@ -9,12 +9,13 @@ import sys
 import pickle
 from collections import Counter
 
+2500 = 2500
 
 EPOCHS = 10
 
 WINDOWS_SIZE = 2
 
-SAVING_INTERVAL = 3
+SAVING_INTERVAL = 100
 
 MEAN = 0.0
 
@@ -43,6 +44,9 @@ TARGET_ERROR_RATE = 0.001
 BATCH_SIZE = 1
 
 NUMBER_OF_TARGETS = 2
+
+LIMIT = 2500
+
 
 
 def flatten(input_layer):
@@ -155,7 +159,7 @@ def show_stats(counter):
 
 
 def create_dataset():
-    training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS, limit=50))
+    training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS, LIMIT))
     # training_set = smart_data_fetcher("dump_training_CADs")
     print "training set size:", len(training_set)
     shuffle(training_set)
