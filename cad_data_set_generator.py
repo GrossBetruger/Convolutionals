@@ -20,8 +20,8 @@ def prepare_training_set(train_dir, batch_size, channels, limit=None, balanced=T
         l = [l] * batch_size
         for raw_data_path in os.listdir(os.path.join(train_dir, label))[:limit]:
             cad = matlab_file_to_cad(os.path.join(train_dir, label, raw_data_path))
-            cad = np.array([cad]*channels)
-            cad = [cad.reshape(cad.shape[1], cad.shape[2], cad.shape[3], channels)] * batch_size
+            # cad = np.array([cad]*channels)
+            cad = [cad.reshape(cad.shape[0], cad.shape[1], cad.shape[2], channels)] * batch_size
             yield [cad, l]
 
 
