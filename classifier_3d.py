@@ -9,8 +9,6 @@ import sys
 import pickle
 from collections import Counter
 
-2500 = 2500
-
 EPOCHS = 10
 
 WINDOWS_SIZE = 2
