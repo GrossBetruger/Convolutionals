@@ -8,6 +8,8 @@ import os
 import sys
 import pickle
 
+EPOCHS = 10
+
 WINDOWS_SIZE = 2
 
 SAVING_INTERVAL = 10
@@ -32,17 +34,22 @@ CAD_DEPTH = 30
 
 OUTPUT_SIZE = 8
 
-LEARNING_RATE = 0.08
+LEARNING_RATE = 0.2
+
+TARGET_ERROR_RATE = 0.001
+
+BATCH_SIZE = 1
+
+NUMBER_OF_TARGETS = 2
+
 
 def flatten(input_layer):
-    # with tf.name_scope("Flatten") as scope:
     input_size = input_layer.get_shape().as_list()
     new_size = reduce(operator.mul, input_size, 1)
     return tf.reshape(input_layer, [-1, new_size])
 
 
 def attach_dense_layer(input_layer, size, summary=False):
-    # with tf.name_scope("Dense") as scope:
     input_size = input_layer.get_shape().as_list()[-1]
     weights = tf.Variable(tf.random_normal([input_size, size], stddev=STDDEV, mean=MEAN), name='dense_weigh')
     if summary:
@@ -53,7 +60,6 @@ def attach_dense_layer(input_layer, size, summary=False):
 
 
 def attach_sigmoid_layer(input_layer):
-    # with tf.name_scope("Activation") as scope:
     return tf.nn.sigmoid(input_layer)
 
 
@@ -97,7 +103,7 @@ def smart_data_fetcher(dump_path):
         return unserialize(dump_path)
     else:
         print "creating training set..."
-        training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS))
+        training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS))
         print "shuffling data set"
         shuffle(training_set)
         print "caching data set"
@@ -105,137 +111,114 @@ def smart_data_fetcher(dump_path):
         return training_set
 
 
-TARGET_ERROR_RATE = 0.001
-batch_size = 1
-number_of_targets = 2
-inputs=tf.placeholder('float32', [batch_size, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
-# maybe simplify targets placeholder
-target_labels = tf.placeholder(dtype='float', shape=[None, number_of_targets], name="Targets")
-# maybe depth of filter should be 30
-weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
-biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
-relu1 = tf.nn.relu(conv1)
-# skipping maxpool
-maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
-                            strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
-
-# fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
-flat_layer1 = flatten(maxpool1)
-dense_layer1 = attach_dense_layer(flat_layer1, 8)
-
-# sigmoid2 = attach_sigmoid_layer(flat_layer1)
-relu2 = tf.nn.relu(dense_layer1)
-dense_layer2 = attach_dense_layer(relu2, number_of_targets)
-softmax1 = tf.nn.softmax(dense_layer2)
+def predict(data, label, inputs, prediction):
+    raw_pred = sess.run([prediction], feed_dict={inputs: data})[0][0]
+    print "raw prediction", raw_pred
+    pred = to_pred(raw_pred)
+    target = list(label[0])
+    print "LABELS:", target
+    return pred == target
 
 
-# cost=tf.nn.softmax_cross_entropy_with_logits(logits=softmax1, labels=target_labels)
-# cost=tf.reduce_mean(cost)
-# optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
-#
-# cost=tf.squared_difference(target_labels, softmax1)
-# cost=tf.reduce_mean(cost)
-# optimizer=tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+def print_model(sess):
+    print "Model Variables"
+    for var in sess.graph.get_collection('variables'):
+        print var
+    print
+    print "Model Trainable Variables"
+    for trainable in sess.graph.get_collection('trainable_variables'):
+        print trainable
+    print
+    print "Model Train Optimizers"
+    for train_op in sess.graph.get_collection('train_op'):
+        print train_op
 
 
+def parse_flags():
+    try:
+        mode = sys.argv[1]
+        optimization_model = sys.argv[2]
+        return mode, optimization_model
+    except IndexError:
+        print "\nUSAGE: python classifier_3d.py <train/test> <naive/cross>\n"
+        quit()
 
 
-try:
-    mode = sys.argv[1]
-    optimization_model = sys.argv[2]
-except IndexError:
-    print "\nUSAGE: python classifier_3d.py <train/test> <naive/cross>\n"
-    quit()
+def create_dataset():
+    training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS, limit=500))
+    # training_set = smart_data_fetcher("dump_training_CADs")
+    print "training set size:", len(training_set)
+    shuffle(training_set)
+    return training_set
 
-naive_optimization = True if optimization_model == "naive" else False
-cost, optimizer = create_optimization(target_labels=target_labels,
-                                      dense_layer=dense_layer2, naive=naive_optimization)
 
-# if naive_optimization:
-#     cost = tf.squared_difference(target_labels, dense_layer2)
-#     cost = tf.reduce_mean(cost)
-#     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
-# else:
-#     cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=target_labels)
-#     cost = tf.reduce_mean(cost)
-#     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+def build_3dconv_nn(optimization_model):
+    inputs=tf.placeholder('float32', [BATCH_SIZE, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
+    # maybe simplify targets placeholder
+    target_labels = tf.placeholder(dtype='float', shape=[None, NUMBER_OF_TARGETS], name="Targets")
+    # maybe depth of filter should be 30
+    weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
+    biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+    conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
+    relu1 = tf.nn.relu(conv1)
+    # skipping maxpool
+    maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
+                                strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
-training_set = list(prepare_training_set("train_cad", batch_size, CHANNELS, limit=500))
-# training_set = smart_data_fetcher("dump_training_CADs")
-print "training set size:", len(training_set)
-shuffle(training_set)
+    # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
+    flat_layer1 = flatten(maxpool1)
+    dense_layer1 = attach_dense_layer(flat_layer1, 8)
 
-saver = tf.train.Saver()
-model_save_path="./model_3d_conv_v2/"
-model_name='CADClassifier'
+    # sigmoid2 = attach_sigmoid_layer(flat_layer1)
+    relu2 = tf.nn.relu(dense_layer1)
+    dense_layer2 = attach_dense_layer(relu2, NUMBER_OF_TARGETS)
+    prediction = tf.nn.softmax(dense_layer2)
 
 
 
-with tf.Session() as sess:
+    naive_optimization = True if optimization_model == "naive" else False
+    cost, optimizer = create_optimization(target_labels=target_labels,
+                                          dense_layer=dense_layer2, naive=naive_optimization)
+
+
+    return inputs, target_labels, cost, optimizer, prediction
+
+
+def run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode):
     tf.global_variables_initializer().run()
-
-    # filename = "./summary_log_CAD/run" + datetime.datetime.now().strftime("%Y-%m-%d--%H-%M-%s")
-
-    if os.path.exists(model_save_path + 'checkpoint'):
-        saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
-
-    # writer = tf.summary.FileWriter(filename, sess.graph)
+    print_model(sess)
 
     step = 1
+    true_count = int()
+    false_count = int()
+
     if mode == "train":
-        true_count = int()
-        false_count = int()
-        for data, label in training_set:
-                # print "\ntraining... step: ", step
-                # print "labels:", label
-                err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
-                print "error rate:", str(err)
-                print "prediction:", sess.run([softmax1], feed_dict={inputs: data})
-                raw_pred = sess.run([softmax1], feed_dict={inputs: data})[0][0]
-                print "raw prediction", raw_pred
-                pred = to_pred(raw_pred)
-                target = list(label[0])
-                print "LABELS:", target
+        for epoch in range(EPOCHS):
+            for data, label in training_set:
+                    err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
+                    print "error rate:", str(err)
 
-                if pred == target:
-                    true_count += 1
-                else:
-                    false_count += 1
-
-                print "true count", true_count
-                print "false count", false_count
-                total = false_count + true_count
-                print "precision", float(true_count) / total
-                step += 1
-                if step % SAVING_INTERVAL == 0:
-                    print "saving model..."
-                    saver.save(sess, model_save_path + model_name, global_step=step)
-                    print "model saved"
-
-    elif mode == "test":
-        true_count = int()
-        false_count = int()
-        for data, label in training_set:
-            print "\ntesting... step: ", step
-            target = "labels:", label[0]
-
-            raw_pred = sess.run([softmax1], feed_dict={inputs: data})[0][0]
-            print "raw prediction", raw_pred
-            pred = to_pred(raw_pred)
-            target = list(label[0])
-            print "LABELS:", target
-
-            if pred == target:
-                true_count += 1
-            else:
-                false_count += 1
-
-            print "true count", true_count
-            print "false count", false_count
-            total = false_count + true_count
-            print "precision", float(true_count) / total
-            step += 1
+                    step += 1
+                    if step % SAVING_INTERVAL == 0:
+                        hit = predict(data, label, inputs, prediction)
+                        if hit:
+                            true_count += 1
+                        else:
+                            false_count += 1
+                        print "true count", true_count
+                        print "false count", false_count
+                        total = false_count + true_count
+                        print "precision", float(true_count) / total
+                        print "epoch", epoch
+                        print "step", step
 
     else:
         raise Exception("invalid mode")
+
+
+if __name__ == "__main__":
+    mode, optimization_model = parse_flags()
+    inputs, target_labels, cost, optimizer, prediction = build_3dconv_nn(optimization_model)
+    training_set = create_dataset()
+    with tf.Session() as sess:
+        run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode)
