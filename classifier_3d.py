@@ -175,8 +175,25 @@ def build_3dconv_nn(optimization_model):
     maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
                                 strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
+    weight2 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, maxpool1.get_shape().as_list()[-1], OUTPUT_SIZE],
+                                           stddev=STDDEV, mean=MEAN), name="Weight2")
+    biases2 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+    conv2 = tf.nn.conv3d(maxpool1, weight2, strides=[1, 1, 1, 1, 1], padding="SAME") + biases2
+    relu2 = tf.nn.relu(conv2)
+    # skipping maxpool
+
+    #
+    weight3 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, relu2.get_shape().as_list()[-1], OUTPUT_SIZE],
+                                           stddev=STDDEV, mean=MEAN), name="Weight3")
+    biases3 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+    conv3 = tf.nn.conv3d(relu2, weight3, strides=[1, 1, 1, 1, 1], padding="SAME") + biases3
+    relu3 = tf.nn.relu(conv3)
+    maxpool3 = tf.nn.max_pool3d(relu3, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
+                                strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
+
+
     # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
-    flat_layer1 = flatten(maxpool1)
+    flat_layer1 = flatten(maxpool3)
     dense_layer1 = attach_dense_layer(flat_layer1, 50)
 
     # sigmoid2 = attach_sigmoid_layer(flat_layer1)
