@@ -241,7 +241,8 @@ def run_session(training_set, cost, optimizer, prediction, inputs, target_labels
 
     elif mode == "test":
         for data, label in training_set:
-            predict(data, label, inputs, prediction)
+            counter.update([predict(data, label, inputs, prediction)])
+            show_stats(counter)
     else:
         raise Exception("invalid mode")
 
