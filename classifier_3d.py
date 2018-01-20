@@ -7,12 +7,14 @@ import tensorflow as tf
 import os
 import sys
 import pickle
+from collections import Counter
+
 
 EPOCHS = 10
 
 WINDOWS_SIZE = 2
 
-SAVING_INTERVAL = 10
+SAVING_INTERVAL = 3
 
 MEAN = 0.0
 
@@ -66,12 +68,10 @@ def attach_sigmoid_layer(input_layer):
 def create_optimization(target_labels, dense_layer, naive=False):
     if naive:
         cost = tf.squared_difference(target_labels, dense_layer)
-        cost = tf.reduce_mean(cost)
-        optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
     else:
         cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer, labels=target_labels)
-        cost = tf.reduce_mean(cost)
-        optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
+    cost = tf.reduce_mean(cost)
+    optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
     return cost, optimizer
 
 
@@ -85,6 +85,7 @@ def to_pred(probas):
 
 def is_certain(probas, confidence):
     return any(x >= confidence for x in probas)
+
 
 def serialize(data, fname):
     with open(fname, "wb") as f:
@@ -144,6 +145,15 @@ def parse_flags():
         quit()
 
 
+def show_stats(counter):
+    stats = dict(counter)
+    total = int()
+    for k, v in stats.iteritems():
+        print k, v
+        total += v
+    print "precision:", stats.get(True, 0) / float(total)
+
+
 def create_dataset():
     training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS, limit=500))
     # training_set = smart_data_fetcher("dump_training_CADs")
@@ -173,6 +183,7 @@ def build_3dconv_nn(optimization_model):
     relu2 = tf.nn.relu(dense_layer1)
     dense_layer2 = attach_dense_layer(relu2, NUMBER_OF_TARGETS)
     prediction = tf.nn.softmax(dense_layer2)
+    # prediction = attach_sigmoid_layer(dense_layer2)
 
 
 
@@ -184,33 +195,20 @@ def build_3dconv_nn(optimization_model):
     return inputs, target_labels, cost, optimizer, prediction
 
 
-def run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode):
+def run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode, epochs):
     tf.global_variables_initializer().run()
     print_model(sess)
-
     step = 1
-    true_count = int()
-    false_count = int()
-
+    counter = Counter()
     if mode == "train":
-        for epoch in range(EPOCHS):
+        for epoch in range(epochs):
             for data, label in training_set:
                     err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
                     print "error rate:", str(err)
-
                     step += 1
                     if step % SAVING_INTERVAL == 0:
-                        hit = predict(data, label, inputs, prediction)
-                        if hit:
-                            true_count += 1
-                        else:
-                            false_count += 1
-                        print "true count", true_count
-                        print "false count", false_count
-                        total = false_count + true_count
-                        print "precision", float(true_count) / total
-                        print "epoch", epoch
-                        print "step", step
+                        counter.update([predict(data, label, inputs, prediction)])
+                        show_stats(counter)
 
     else:
         raise Exception("invalid mode")
@@ -221,4 +219,4 @@ if __name__ == "__main__":
     inputs, target_labels, cost, optimizer, prediction = build_3dconv_nn(optimization_model)
     training_set = create_dataset()
     with tf.Session() as sess:
-        run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode)
+        run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode, EPOCHS)
