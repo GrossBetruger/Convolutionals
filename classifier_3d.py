@@ -155,7 +155,7 @@ def show_stats(counter):
 
 
 def create_dataset():
-    training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS, limit=500))
+    training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS, limit=50))
     # training_set = smart_data_fetcher("dump_training_CADs")
     print "training set size:", len(training_set)
     shuffle(training_set)
@@ -177,7 +177,7 @@ def build_3dconv_nn(optimization_model):
 
     # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
     flat_layer1 = flatten(maxpool1)
-    dense_layer1 = attach_dense_layer(flat_layer1, 8)
+    dense_layer1 = attach_dense_layer(flat_layer1, 50)
 
     # sigmoid2 = attach_sigmoid_layer(flat_layer1)
     relu2 = tf.nn.relu(dense_layer1)
@@ -197,6 +197,13 @@ def build_3dconv_nn(optimization_model):
 
 def run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode, epochs):
     tf.global_variables_initializer().run()
+    saver = tf.train.Saver()
+    model_save_path = "./model_conv3d_v1/"
+    model_name = 'CAD_Classifier'
+
+    if os.path.exists(model_save_path + 'checkpoint'):
+        saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
+
     print_model(sess)
     step = 1
     counter = Counter()
@@ -207,9 +214,15 @@ def run_session(training_set, cost, optimizer, prediction, inputs, target_labels
                     print "error rate:", str(err)
                     step += 1
                     if step % SAVING_INTERVAL == 0:
+                        print "saving model..."
+                        saver.save(sess, model_save_path + model_name)
+                        print "model saved"
                         counter.update([predict(data, label, inputs, prediction)])
                         show_stats(counter)
 
+    elif mode == "test":
+        for data, label in training_set:
+            predict(data, label, inputs, prediction)
     else:
         raise Exception("invalid mode")
 

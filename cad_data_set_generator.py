@@ -7,9 +7,14 @@ def matlab_file_to_cad(matlab_file_path):
     return spio.loadmat(matlab_file_path, squeeze_me=True).get('instance')
 
 
-def prepare_training_set(train_dir, batch_size, channels, limit=None):
+def prepare_training_set(train_dir, batch_size, channels, limit=None, balanced=True):
     labels = os.listdir(train_dir)
+    data_set_sizes = [len(os.listdir(os.path.join(train_dir, label))) for label in labels]
+    data_set_sizes_all_equal = len(set(data_set_sizes)) == 1
+    if limit is None and balanced and not data_set_sizes_all_equal:
+        limit = min(data_set_sizes)
     for i, label in enumerate(labels):
+        print "creating data for lable:", label, "--", "ord:", i
         l = np.zeros(len(labels), dtype=int)
         l[i] = 1
         l = [l] * batch_size
