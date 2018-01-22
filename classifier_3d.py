@@ -19,11 +19,11 @@ MEAN = 0.0
 
 STDDEV = 0.05
 
-FILTER_WIDTH = 5
+FILTER_WIDTH = 3
 
-FILTER_HEIGHT = 5
+FILTER_HEIGHT = 3
 
-FILTER_DEPTH = 5
+FILTER_DEPTH = 3
 
 CHANNELS = 1
 
@@ -33,9 +33,9 @@ CAD_HEIGHT = 30
 
 CAD_DEPTH = 30
 
-OUTPUT_SIZE = 8
+OUTPUT_SIZE = 64
 
-LEARNING_RATE = 0.2
+LEARNING_RATE = 0.0001
 
 TARGET_ERROR_RATE = 0.001
 
@@ -165,50 +165,55 @@ def create_dataset():
 
 
 def build_3dconv_nn(optimization_model):
-    inputs=tf.placeholder('float32', [BATCH_SIZE, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
-    # maybe simplify targets placeholder
-    target_labels = tf.placeholder(dtype='float', shape=[None, NUMBER_OF_TARGETS], name="Targets")
-    # maybe depth of filter should be 30
-    weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
-    biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-    conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
-    relu1 = tf.nn.relu(conv1)
-    # skipping maxpool
-    maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
-                                strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
-    weight2 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, maxpool1.get_shape().as_list()[-1], OUTPUT_SIZE],
-                                           stddev=STDDEV, mean=MEAN), name="Weight2")
-    biases2 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-    conv2 = tf.nn.conv3d(maxpool1, weight2, strides=[1, 1, 1, 1, 1], padding="SAME") + biases2
-    relu2 = tf.nn.relu(conv2)
-    # skipping maxpool
+    with tf.name_scope("Model3d") as scope: 
+        inputs=tf.placeholder('float32', [BATCH_SIZE, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
+        # maybe simplify targets placeholder
+        target_labels = tf.placeholder(dtype='float', shape=[None, NUMBER_OF_TARGETS], name="Targets")
+        # maybe depth of filter should be 30
+        weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
+        biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+        conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
+        relu1 = tf.nn.relu(conv1)
+        # skipping maxpool
+        maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
+                                    strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
-    #
-    weight3 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, relu2.get_shape().as_list()[-1], OUTPUT_SIZE],
-                                           stddev=STDDEV, mean=MEAN), name="Weight3")
-    biases3 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-    conv3 = tf.nn.conv3d(relu2, weight3, strides=[1, 1, 1, 1, 1], padding="SAME") + biases3
-    relu3 = tf.nn.relu(conv3)
-    maxpool3 = tf.nn.max_pool3d(relu3, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
-                                strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
+        weight2 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, maxpool1.get_shape().as_list()[-1], OUTPUT_SIZE],
+                                               stddev=STDDEV, mean=MEAN), name="Weight2")
+        biases2 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+        conv2 = tf.nn.conv3d(maxpool1, weight2, strides=[1, 1, 1, 1, 1], padding="SAME") + biases2
+        relu2 = tf.nn.relu(conv2)
+        # skipping maxpool
 
-
-    # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
-    flat_layer1 = flatten(maxpool3)
-    dense_layer1 = attach_dense_layer(flat_layer1, 50)
-
-    # sigmoid2 = attach_sigmoid_layer(flat_layer1)
-    relu2 = tf.nn.relu(dense_layer1)
-    dense_layer2 = attach_dense_layer(relu2, NUMBER_OF_TARGETS)
-    prediction = tf.nn.softmax(dense_layer2)
-    # prediction = attach_sigmoid_layer(dense_layer2)
+        #
+        weight3 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, relu2.get_shape().as_list()[-1], OUTPUT_SIZE],
+                                               stddev=STDDEV, mean=MEAN), name="Weight3")
+        biases3 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+        conv3 = tf.nn.conv3d(relu2, weight3, strides=[1, 1, 1, 1, 1], padding="SAME") + biases3
+        relu3 = tf.nn.relu(conv3)
+        maxpool3 = tf.nn.max_pool3d(relu3, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
+                                    strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
 
+        # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
+        flat_layer1 = flatten(maxpool3)
+        dense_layer1 = attach_dense_layer(flat_layer1, 50)
 
-    naive_optimization = True if optimization_model == "naive" else False
-    cost, optimizer = create_optimization(target_labels=target_labels,
-                                          dense_layer=dense_layer2, naive=naive_optimization)
+        # sigmoid2 = attach_sigmoid_layer(flat_layer1)
+
+        # i change onle here relu  to relu 4
+
+        relu4 = tf.nn.relu(dense_layer1)
+        dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
+        prediction = tf.nn.softmax(dense_layer2)
+        # prediction = attach_sigmoid_layer(dense_layer2)
+
+
+
+        naive_optimization = True if optimization_model == "naive" else False
+        cost, optimizer = create_optimization(target_labels=target_labels,
+                                              dense_layer=dense_layer2, naive=naive_optimization)
 
 
     return inputs, target_labels, cost, optimizer, prediction
