@@ -157,11 +157,11 @@ def show_stats(counter):
 
 
 def create_dataset(dataset_path):
-    training_set = list(prepare_data_set(dataset_path, BATCH_SIZE, CHANNELS, LIMIT))
-    # training_set = smart_data_fetcher("dump_training_CADs")
-    print "training set size:", len(training_set)
-    shuffle(training_set)
-    return training_set
+    data_set = list(prepare_data_set(dataset_path, BATCH_SIZE, CHANNELS, LIMIT))
+    # data_set = smart_data_fetcher("dump_training_CADs")
+    print "data set size:", len(data_set)
+    shuffle(data_set)
+    return data_set
 
 
 def build_3dconv_nn(optimization_model):
@@ -219,7 +219,7 @@ def build_3dconv_nn(optimization_model):
     return inputs, target_labels, cost, optimizer, prediction
 
 
-def run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode, epochs):
+def run_session(training_set, test_set, cost, optimizer, prediction, inputs, target_labels, mode, epochs):
     tf.global_variables_initializer().run()
     saver = tf.train.Saver()
     model_save_path = "./model_conv3d_v1/"
@@ -245,7 +245,7 @@ def run_session(training_set, cost, optimizer, prediction, inputs, target_labels
                         show_stats(counter)
 
     elif mode == "test":
-        for data, label in training_set:
+        for data, label in test_set:
             counter.update([predict(data, label, inputs, prediction)])
             show_stats(counter)
     else:
@@ -256,6 +256,6 @@ if __name__ == "__main__":
     mode, optimization_model = parse_flags()
     inputs, target_labels, cost, optimizer, prediction = build_3dconv_nn(optimization_model)
     training_set = create_dataset("train_cad")
-    test_set = create_dataset("train_cad")
+    test_set = create_dataset("test_cad")
     with tf.Session() as sess:
-        run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode, EPOCHS)
+        run_session(training_set, test_set, cost, optimizer, prediction, inputs, target_labels, mode, EPOCHS)
