@@ -1,6 +1,6 @@
 import datetime
 from random import shuffle
-from cad_data_set_generator import prepare_training_set
+from cad_data_set_generator import prepare_data_set
 from functools import reduce
 import operator
 import tensorflow as tf
@@ -106,7 +106,7 @@ def smart_data_fetcher(dump_path):
         return unserialize(dump_path)
     else:
         print "creating training set..."
-        training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS))
+        training_set = list(prepare_data_set("train_cad", BATCH_SIZE, CHANNELS))
         print "shuffling data set"
         shuffle(training_set)
         print "caching data set"
@@ -156,8 +156,8 @@ def show_stats(counter):
     print "precision:", stats.get(True, 0) / float(total)
 
 
-def create_dataset():
-    training_set = list(prepare_training_set("train_cad", BATCH_SIZE, CHANNELS, LIMIT))
+def create_dataset(dataset_path):
+    training_set = list(prepare_data_set(dataset_path, BATCH_SIZE, CHANNELS, LIMIT))
     # training_set = smart_data_fetcher("dump_training_CADs")
     print "training set size:", len(training_set)
     shuffle(training_set)
@@ -255,6 +255,7 @@ def run_session(training_set, cost, optimizer, prediction, inputs, target_labels
 if __name__ == "__main__":
     mode, optimization_model = parse_flags()
     inputs, target_labels, cost, optimizer, prediction = build_3dconv_nn(optimization_model)
-    training_set = create_dataset()
+    training_set = create_dataset("train_cad")
+    test_set = create_dataset("train_cad")
     with tf.Session() as sess:
         run_session(training_set, cost, optimizer, prediction, inputs, target_labels, mode, EPOCHS)
