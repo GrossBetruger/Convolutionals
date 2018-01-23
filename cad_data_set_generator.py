@@ -18,14 +18,14 @@ def prepare_data_set(dataset_dir, batch_size, channels, limit=None, balanced=Tru
         print "creating data for lable:", label, "--", "ord:", i
         l = np.zeros(len(labels), dtype=int)
         l[i] = 1
-        if fuzzing_mode:
-            # NEVER SET THIS FLAG TRUE unless you know what you're doing
-            l[i] = randint(0, len(labels)-1)
-        l = [l] * batch_size
+
         for raw_data_path in os.listdir(os.path.join(dataset_dir, label))[:limit]:
+            if fuzzing_mode:
+                # NEVER SET THIS FLAG TRUE unless you know what you're doing
+                l[i] = randint(0, len(labels) - 1)
             cad = matlab_file_to_cad(os.path.join(dataset_dir, label, raw_data_path))
             cad = [cad.reshape(cad.shape[0], cad.shape[1], cad.shape[2], channels)] * batch_size
-            yield [cad, l]
+            yield [cad, [l] * batch_size]
 
 
 if __name__ == "__main__":
