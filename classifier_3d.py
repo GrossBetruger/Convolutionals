@@ -1,4 +1,3 @@
-import datetime
 from random import shuffle
 from cad_data_set_generator import prepare_data_set
 from functools import reduce
@@ -13,7 +12,7 @@ EPOCHS = 10
 
 WINDOWS_SIZE = 2
 
-SAVING_INTERVAL = 100
+SAVING_INTERVAL = 5
 
 MEAN = 0.0
 
@@ -67,22 +66,20 @@ def attach_sigmoid_layer(input_layer):
     return tf.nn.sigmoid(input_layer)
 
 
-def create_optimization(target_labels, dense_layer, naive=False):
-    if naive:
-        cost = tf.squared_difference(target_labels, dense_layer)
-    else:
-        cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer, labels=target_labels)
+def create_optimization(target_labels, dense_layer):
+
+    cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer, labels=target_labels)
     cost = tf.reduce_mean(cost)
     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
     return cost, optimizer
 
 
-def smooth(proba):
-    return 0 if proba < .5 else 1
+#def smooth(proba):
+#    return 0 if proba < .5 else 1
 
 
-def to_pred(probas):
-    return [smooth(pred) for pred in probas]
+#def to_pred(probas):
+#    return [smooth(pred) for pred in probas]
 
 
 def is_certain(probas, confidence):
@@ -114,13 +111,18 @@ def smart_data_fetcher(dump_path):
         return training_set
 
 
-def predict(data, label, inputs, prediction):
-    raw_pred = sess.run([prediction], feed_dict={inputs: data})[0][0]
+def predict(data, label, inputs, final_pred, prediction):
+
+    class_pred, raw_pred = sess.run([final_pred,prediction], feed_dict={inputs: data})
     print "raw prediction", raw_pred
-    pred = to_pred(raw_pred)
-    target = list(label[0])
+    print "class: ",class_pred
+    target = label[0]
     print "LABELS:", target
-    return pred == target
+
+    if target[class_pred]:
+        return True
+    return False
+
 
 
 def print_model(sess):
@@ -140,10 +142,9 @@ def print_model(sess):
 def parse_flags():
     try:
         mode = sys.argv[1]
-        optimization_model = sys.argv[2]
-        return mode, optimization_model
+        return mode
     except IndexError:
-        print "\nUSAGE: python classifier_3d.py <train/test> <naive/cross>\n"
+        print "\nUSAGE: python classifier_3d.py <train/test> \n"
         quit()
 
 
@@ -164,9 +165,9 @@ def create_dataset(dataset_path):
     return data_set
 
 
-def build_3dconv_nn(optimization_model):
+def build_3dconv_nn():
 
-    with tf.name_scope("Model3d") as scope: 
+    with tf.name_scope("Model3d") as scope:
         inputs=tf.placeholder('float32', [BATCH_SIZE, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
         # maybe simplify targets placeholder
         target_labels = tf.placeholder(dtype='float', shape=[None, NUMBER_OF_TARGETS], name="Targets")
@@ -195,31 +196,34 @@ def build_3dconv_nn(optimization_model):
         maxpool3 = tf.nn.max_pool3d(relu3, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
                                     strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
-
+        dropout = tf.nn.dropout(maxpool3, 0.5)
         # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
-        flat_layer1 = flatten(maxpool3)
-        dense_layer1 = attach_dense_layer(flat_layer1, 50)
+        flat_layer1 = flatten(dropout)
+        dense_layer1 = attach_dense_layer(flat_layer1, 2048)
 
         # sigmoid2 = attach_sigmoid_layer(flat_layer1)
 
-        # i change onle here relu  to relu 4
+
 
         relu4 = tf.nn.relu(dense_layer1)
         dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
+
         prediction = tf.nn.softmax(dense_layer2)
+        final_pred = tf.argmax(prediction,axis=1)
+
         # prediction = attach_sigmoid_layer(dense_layer2)
 
 
 
-        naive_optimization = True if optimization_model == "naive" else False
+
         cost, optimizer = create_optimization(target_labels=target_labels,
-                                              dense_layer=dense_layer2, naive=naive_optimization)
+                                              dense_layer=dense_layer2)
 
 
-    return inputs, target_labels, cost, optimizer, prediction
+    return inputs, target_labels, cost, optimizer,final_pred,  prediction
 
 
-def run_session(training_set, test_set, cost, optimizer, prediction, inputs, target_labels, mode, epochs):
+def run_session(training_set, test_set, cost, optimizer,final_pred, prediction, inputs, target_labels, mode, epochs):
     tf.global_variables_initializer().run()
     saver = tf.train.Saver()
     model_save_path = "./model_conv3d_v1/"
@@ -241,21 +245,21 @@ def run_session(training_set, test_set, cost, optimizer, prediction, inputs, tar
                         print "saving model..."
                         saver.save(sess, model_save_path + model_name)
                         print "model saved"
-                        counter.update([predict(data, label, inputs, prediction)])
+                        counter.update([predict(data, label, inputs, final_pred, prediction)])
                         show_stats(counter)
 
     elif mode == "test":
         for data, label in test_set:
-            counter.update([predict(data, label, inputs, prediction)])
+            counter.update([predict(data, label, inputs, final_pred, prediction)])
             show_stats(counter)
     else:
         raise Exception("invalid mode")
 
 
 if __name__ == "__main__":
-    mode, optimization_model = parse_flags()
-    inputs, target_labels, cost, optimizer, prediction = build_3dconv_nn(optimization_model)
+    mode = parse_flags()
+    inputs, target_labels, cost, optimizer, final_pred, prediction = build_3dconv_nn()
     training_set = create_dataset("train_cad")
     test_set = create_dataset("test_cad")
     with tf.Session() as sess:
-        run_session(training_set, test_set, cost, optimizer, prediction, inputs, target_labels, mode, EPOCHS)
+        run_session(training_set, test_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS)
