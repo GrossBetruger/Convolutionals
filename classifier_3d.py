@@ -1,5 +1,5 @@
 from random import shuffle
-from cad_data_set_generator import prepare_data_set
+from cad_data_set_generator import prepare_data_set, prepare_data_set_smart_wrapper
 from functools import reduce
 import operator
 import tensorflow as tf
@@ -40,7 +40,7 @@ TARGET_ERROR_RATE = 0.001
 
 BATCH_SIZE = 1
 
-NUMBER_OF_TARGETS = 2
+NUMBER_OF_TARGETS = 10
 
 LIMIT = 2500
 
@@ -158,7 +158,7 @@ def show_stats(counter):
 
 
 def create_dataset(dataset_path):
-    data_set = list(prepare_data_set(dataset_path, BATCH_SIZE, CHANNELS, LIMIT))
+    data_set = list(prepare_data_set_smart_wrapper(dataset_path, BATCH_SIZE, CHANNELS, LIMIT))
     # data_set = smart_data_fetcher("dump_training_CADs")
     print "data set size:", len(data_set)
     shuffle(data_set)
@@ -259,7 +259,7 @@ def run_session(training_set, test_set, cost, optimizer,final_pred, prediction, 
 if __name__ == "__main__":
     mode = parse_flags()
     inputs, target_labels, cost, optimizer, final_pred, prediction = build_3dconv_nn()
-    training_set = create_dataset("train_cad")
-    test_set = create_dataset("test_cad")
+    training_set = create_dataset("train_cad_10.tar.gz")
+    test_set = create_dataset("test_cad_10.tar.gz")
     with tf.Session() as sess:
         run_session(training_set, test_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS)

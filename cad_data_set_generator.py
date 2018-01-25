@@ -2,6 +2,7 @@ import scipy.io as spio
 import os
 import numpy as np
 from random import randint
+from untar import extract
 
 
 def matlab_file_to_cad(matlab_file_path):
@@ -26,6 +27,14 @@ def prepare_data_set(dataset_dir, batch_size, channels, limit=None, balanced=Tru
             cad = matlab_file_to_cad(os.path.join(dataset_dir, label, raw_data_path))
             cad = [cad.reshape(cad.shape[0], cad.shape[1], cad.shape[2], channels)] * batch_size
             yield [cad, [l] * batch_size]
+
+
+def prepare_data_set_smart_wrapper(dataset_dir, batch_size, channels, limit=None, balanced=True, fuzzing_mode=False):
+    tar_gz_suffix = ".tar.gz"
+    if dataset_dir.endswith(tar_gz_suffix):
+        extract(dataset_dir)
+        return prepare_data_set(dataset_dir[:dataset_dir.index(tar_gz_suffix)],  batch_size, channels, limit=limit, balanced=balanced, fuzzing_mode=fuzzing_mode)
+
 
 
 if __name__ == "__main__":
