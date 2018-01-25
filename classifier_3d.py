@@ -40,10 +40,13 @@ TARGET_ERROR_RATE = 0.001
 
 BATCH_SIZE = 1
 
-NUMBER_OF_TARGETS = 10
+NUMBER_OF_TARGETS = 2
 
 LIMIT = 2500
 
+FC_NEURONS = 50 # need to be 2048
+
+COST_FUNCTION = "cross"  #cross/sqrt 
 
 
 def flatten(input_layer):
@@ -67,19 +70,15 @@ def attach_sigmoid_layer(input_layer):
 
 
 def create_optimization(target_labels, dense_layer):
-
-    cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer, labels=target_labels)
+    if COST_FUNCTION == "sqr":
+        cost = tf.squared_difference(target_labels, dense_layer)
+    else:
+        cost = tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer, labels=target_labels)
     cost = tf.reduce_mean(cost)
     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
     return cost, optimizer
 
 
-#def smooth(proba):
-#    return 0 if proba < .5 else 1
-
-
-#def to_pred(probas):
-#    return [smooth(pred) for pred in probas]
 
 
 def is_certain(probas, confidence):
@@ -199,7 +198,7 @@ def build_3dconv_nn():
         dropout = tf.nn.dropout(maxpool3, 0.5)
         # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
         flat_layer1 = flatten(dropout)
-        dense_layer1 = attach_dense_layer(flat_layer1, 2048)
+        dense_layer1 = attach_dense_layer(flat_layer1, FC_NEURONS)
 
         # sigmoid2 = attach_sigmoid_layer(flat_layer1)
 
@@ -223,7 +222,7 @@ def build_3dconv_nn():
     return inputs, target_labels, cost, optimizer,final_pred,  prediction
 
 
-def run_session(training_set, test_set, cost, optimizer,final_pred, prediction, inputs, target_labels, mode, epochs):
+def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target_labels, mode, epochs):
     tf.global_variables_initializer().run()
     saver = tf.train.Saver()
     model_save_path = "./model_conv3d_v1/"
@@ -237,7 +236,7 @@ def run_session(training_set, test_set, cost, optimizer,final_pred, prediction, 
     counter = Counter()
     if mode == "train":
         for epoch in range(epochs):
-            for data, label in training_set:
+            for data, label in data_set:
                     err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
                     print "error rate:", str(err)
                     step += 1
@@ -249,7 +248,7 @@ def run_session(training_set, test_set, cost, optimizer,final_pred, prediction, 
                         show_stats(counter)
 
     elif mode == "test":
-        for data, label in test_set:
+        for data, label in data_set:
             counter.update([predict(data, label, inputs, final_pred, prediction)])
             show_stats(counter)
     else:
@@ -259,7 +258,11 @@ def run_session(training_set, test_set, cost, optimizer,final_pred, prediction, 
 if __name__ == "__main__":
     mode = parse_flags()
     inputs, target_labels, cost, optimizer, final_pred, prediction = build_3dconv_nn()
-    training_set = create_dataset("train_cad_10.tar.gz")
-    test_set = create_dataset("test_cad_10.tar.gz")
+    if mode == "train":
+        print "Train Dataset"
+        data_set = create_dataset("train_cad")
+    else:
+        print "Test Dataset"
+        data_set = create_dataset("test_cad")
     with tf.Session() as sess:
-        run_session(training_set, test_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS)
+        run_session(data_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS)
