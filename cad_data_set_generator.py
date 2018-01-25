@@ -32,9 +32,10 @@ def prepare_data_set(dataset_dir, batch_size, channels, limit=None, balanced=Tru
 def prepare_data_set_smart_wrapper(dataset_dir, batch_size, channels, limit=None, balanced=True, fuzzing_mode=False):
     tar_gz_suffix = ".tar.gz"
     if dataset_dir.endswith(tar_gz_suffix):
+        print "untaring dataset: {}, please wait".format(dataset_dir)
         extract(dataset_dir)
         return prepare_data_set(dataset_dir[:dataset_dir.index(tar_gz_suffix)],  batch_size, channels, limit=limit, balanced=balanced, fuzzing_mode=fuzzing_mode)
-
+    return prepare_data_set(dataset_dir, batch_size, channels, limit=limit, balanced=balanced, fuzzing_mode=fuzzing_mode)
 
 
 if __name__ == "__main__":
