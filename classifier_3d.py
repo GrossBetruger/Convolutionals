@@ -7,6 +7,7 @@ import os
 import sys
 import pickle
 from collections import Counter
+import numpy as np
 
 EPOCHS = 10
 
@@ -46,7 +47,7 @@ LIMIT = 2500
 
 FC_NEURONS = 50 # need to be 2048
 
-COST_FUNCTION = "cross"  #cross/sqrt 
+COST_FUNCTION = "cross"  #cross/sqrt
 
 
 def flatten(input_layer):
@@ -114,10 +115,10 @@ def predict(data, label, inputs, final_pred, prediction):
 
     class_pred, raw_pred = sess.run([final_pred,prediction], feed_dict={inputs: data})
     print "raw prediction", raw_pred
-    print "class: ",class_pred
+    print "Predict class:",class_pred
     target = label[0]
-    print "LABELS:", target
-
+    target_class = np.argmax(target)
+    print "Target class:", [target_class]
     if target[class_pred]:
         return True
     return False
