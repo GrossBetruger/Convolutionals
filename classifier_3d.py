@@ -55,7 +55,7 @@ OUTPUT_SIZE = 8 # need to be 64
 
 BATCH_SIZE = 12
 
-LEARNING_RATE = BATCH_SIZE * 0.0001 * 10
+LEARNING_RATE = BATCH_SIZE * 0.0001
 
 TARGET_ERROR_RATE = 0.001
 
@@ -351,6 +351,7 @@ if __name__ == "__main__":
     mode, network = parse_flags()
 
     network_builder = build_concat3dconv_cvnn if network.startswith("concat") else build_3dconv_cvnn
+    LEARNING_RATE = LEARNING_RATE * 10 if network.startswith("concat") else LEARNING_RATE
 
     if mode == "train":
         inputs, target_labels, cost, optimizer, final_pred, prediction = network_builder(mode)
