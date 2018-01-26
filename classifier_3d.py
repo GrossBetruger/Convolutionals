@@ -35,13 +35,13 @@ CAD_DEPTH = 30
 
 OUTPUT_SIZE = 8 # need to be 64
 
-LEARNING_RATE = 0.0001
+BATCH_SIZE = 12
+
+LEARNING_RATE = BATCH_SIZE * 0.0001
 
 TARGET_ERROR_RATE = 0.001
 
-BATCH_SIZE = 1
-
-NUMBER_OF_TARGETS = 2
+NUMBER_OF_TARGETS = 10
 
 LIMIT = 2500
 
@@ -110,11 +110,13 @@ def smart_data_fetcher(dump_path):
         return training_set
 
 
-def predict(data, label, inputs, final_pred, prediction):
+def predict(data, label, inputs, final_pred, prediction, mode):
 
     class_pred, raw_pred = sess.run([final_pred,prediction], feed_dict={inputs: data})
     print "raw prediction", raw_pred
     print "Predict class:",class_pred
+    if mode == "test":
+        return [label[0][class_pred[0]] == 1]
     assert len(label) == len(class_pred)
     return [label_vec[class_pred[i]] == 1 for i, label_vec in enumerate(label)]
 
@@ -160,7 +162,7 @@ def create_dataset(dataset_path):
     return data_set
 
 
-def build_3dconv_nn():
+def build_3dconv_nn(mode):
 
     inputs=tf.placeholder('float32', [BATCH_SIZE, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
     target_labels = tf.placeholder(dtype='float', shape=[BATCH_SIZE, NUMBER_OF_TARGETS], name="Targets")
@@ -186,17 +188,24 @@ def build_3dconv_nn():
     dropout = tf.nn.dropout(maxpool3, 0.5)
     flat_layer1 = flatten(dropout)
     dense_layer1 = attach_dense_layer(flat_layer1, FC_NEURONS)
-
     relu4 = tf.nn.relu(dense_layer1)
-    dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
-    prediction = tf.nn.softmax(dense_layer2)
-    final_pred =tf.argmax(tf.reshape(prediction, [BATCH_SIZE, NUMBER_OF_TARGETS]), axis=1)
+    print "relu", relu4
+    if mode == "test":
+        relu4 =tf.reduce_max(relu4, axis=0, keep_dims=True)
+        dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
+        prediction = tf.nn.softmax(dense_layer2)
+        final_pred = tf.argmax(prediction, axis=1)
+        return inputs, target_labels, final_pred, prediction
+    else:
+        dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
+        prediction = tf.nn.softmax(dense_layer2)
 
-    cost, optimizer = create_optimization(target_labels=target_labels,
+        final_pred =tf.argmax(tf.reshape(prediction, [BATCH_SIZE, NUMBER_OF_TARGETS]), axis=1)
+        cost, optimizer = create_optimization(target_labels=target_labels,
                                           dense_layer=dense_layer2)
 
 
-    return inputs, target_labels, cost, optimizer,final_pred,  prediction
+    return inputs, target_labels, cost, optimizer,final_pred, prediction
 
 
 def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target_labels, mode, epochs):
@@ -222,13 +231,13 @@ def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target
                     print "saving model..."
                     saver.save(sess, model_save_path + model_name)
                     print "model saved"
-                    counter.update(predict(data, label, inputs, final_pred, prediction))
+                    counter.update(predict(data, label, inputs, final_pred, prediction, mode))
                     show_stats(counter)
 
     elif mode == "test":
         for batch in data_set:
             data, label = batch[0], batch[1]
-            counter.update(predict(data, label, inputs, final_pred, prediction))
+            counter.update(predict(data, label, inputs, final_pred, prediction, mode))
             show_stats(counter)
     else:
         raise Exception("invalid mode")
@@ -236,12 +245,15 @@ def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target
 
 if __name__ == "__main__":
     mode = parse_flags()
-    inputs, target_labels, cost, optimizer, final_pred, prediction = build_3dconv_nn()
     if mode == "train":
+        inputs, target_labels, cost, optimizer, final_pred, prediction = build_3dconv_nn(mode)
         print "Train Dataset"
-        data_set = create_dataset("train_cad")
+        data_set = create_dataset("train_cad_10.tar.gz")
+        with tf.Session() as sess:
+            run_session(data_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS)
     else:
+        inputs, target_labels, final_pred, prediction = build_3dconv_nn(mode)
         print "Test Dataset"
-        data_set = create_dataset("test_cad")
-    with tf.Session() as sess:
-        run_session(data_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS)
+        data_set = create_dataset("test_cad_10.tar.gz")
+        with tf.Session() as sess:
+            run_session(data_set, [], [], final_pred, prediction, inputs, target_labels, mode, EPOCHS)
