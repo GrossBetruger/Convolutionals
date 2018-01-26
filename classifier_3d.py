@@ -33,7 +33,7 @@ CAD_HEIGHT = 30
 
 CAD_DEPTH = 30
 
-OUTPUT_SIZE = 64
+OUTPUT_SIZE = 8 # need to be 64
 
 LEARNING_RATE = 0.0001
 
@@ -47,12 +47,13 @@ LIMIT = 2500
 
 FC_NEURONS = 50 # need to be 2048
 
-COST_FUNCTION = "cross"  #cross/sqrt
+COST_FUNCTION = "cross"  #cross/sqr
 
 
 def flatten(input_layer):
     input_size = input_layer.get_shape().as_list()
-    new_size = reduce(operator.mul, input_size, 1)
+    new_size = input_size[-1] * input_size[-2] * input_size[-3]* input_size[-4]
+    #new_size = reduce(operator.mul, input_size, 1)
     return tf.reshape(input_layer, [-1, new_size])
 
 
@@ -78,8 +79,6 @@ def create_optimization(target_labels, dense_layer):
     cost = tf.reduce_mean(cost)
     optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
     return cost, optimizer
-
-
 
 
 def is_certain(probas, confidence):
@@ -116,13 +115,8 @@ def predict(data, label, inputs, final_pred, prediction):
     class_pred, raw_pred = sess.run([final_pred,prediction], feed_dict={inputs: data})
     print "raw prediction", raw_pred
     print "Predict class:",class_pred
-    target = label[0]
-    target_class = np.argmax(target)
-    print "Target class:", [target_class]
-    if target[class_pred]:
-        return True
-    return False
-
+    assert len(label) == len(class_pred)
+    return [label_vec[class_pred[i]] == 1 for i, label_vec in enumerate(label)]
 
 
 def print_model(sess):
@@ -152,8 +146,9 @@ def show_stats(counter):
     stats = dict(counter)
     total = int()
     for k, v in stats.iteritems():
-        print k, v
+        print k ,":", v
         total += v
+    print "Total:", total
     print "precision:", stats.get(True, 0) / float(total)
 
 
@@ -167,57 +162,38 @@ def create_dataset(dataset_path):
 
 def build_3dconv_nn():
 
-    with tf.name_scope("Model3d") as scope:
-        inputs=tf.placeholder('float32', [BATCH_SIZE, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
-        # maybe simplify targets placeholder
-        target_labels = tf.placeholder(dtype='float', shape=[None, NUMBER_OF_TARGETS], name="Targets")
-        # maybe depth of filter should be 30
-        weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
-        biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-        conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
-        relu1 = tf.nn.relu(conv1)
-        # skipping maxpool
-        maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
-                                    strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
+    inputs=tf.placeholder('float32', [BATCH_SIZE, CAD_DEPTH, CAD_HEIGHT, CAD_WIDTH, CHANNELS], name='Input')
+    target_labels = tf.placeholder(dtype='float', shape=[BATCH_SIZE, NUMBER_OF_TARGETS], name="Targets")
+    weight1 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, CHANNELS, OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name="Weight1")
+    biases1 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+    conv1 = tf.nn.conv3d(inputs, weight1, strides=[1, 1, 1, 1, 1], padding="SAME") + biases1
+    relu1 = tf.nn.relu(conv1)
+    maxpool1 = tf.nn.max_pool3d(relu1, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
+                                strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
 
-        weight2 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, maxpool1.get_shape().as_list()[-1], OUTPUT_SIZE],
-                                               stddev=STDDEV, mean=MEAN), name="Weight2")
-        biases2 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-        conv2 = tf.nn.conv3d(maxpool1, weight2, strides=[1, 1, 1, 1, 1], padding="SAME") + biases2
-        relu2 = tf.nn.relu(conv2)
-        # skipping maxpool
+    weight2 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, maxpool1.get_shape().as_list()[-1], OUTPUT_SIZE],
+                                           stddev=STDDEV, mean=MEAN), name="Weight2")
+    biases2 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+    conv2 = tf.nn.conv3d(maxpool1, weight2, strides=[1, 1, 1, 1, 1], padding="SAME") + biases2
+    relu2 = tf.nn.relu(conv2)
+    weight3 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, relu2.get_shape().as_list()[-1], OUTPUT_SIZE],
+                                           stddev=STDDEV, mean=MEAN), name="Weight3")
+    biases3 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
+    conv3 = tf.nn.conv3d(relu2, weight3, strides=[1, 1, 1, 1, 1], padding="SAME") + biases3
+    relu3 = tf.nn.relu(conv3)
+    maxpool3 = tf.nn.max_pool3d(relu3, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
+                                strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
+    dropout = tf.nn.dropout(maxpool3, 0.5)
+    flat_layer1 = flatten(dropout)
+    dense_layer1 = attach_dense_layer(flat_layer1, FC_NEURONS)
 
-        #
-        weight3 = tf.Variable(tf.random_normal(shape=[FILTER_DEPTH, FILTER_HEIGHT, FILTER_WIDTH, relu2.get_shape().as_list()[-1], OUTPUT_SIZE],
-                                               stddev=STDDEV, mean=MEAN), name="Weight3")
-        biases3 = tf.Variable(tf.random_normal([OUTPUT_SIZE], stddev=STDDEV, mean=MEAN), name='conv_biases')
-        conv3 = tf.nn.conv3d(relu2, weight3, strides=[1, 1, 1, 1, 1], padding="SAME") + biases3
-        relu3 = tf.nn.relu(conv3)
-        maxpool3 = tf.nn.max_pool3d(relu3, ksize=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1],
-                                    strides=[1, WINDOWS_SIZE, WINDOWS_SIZE, WINDOWS_SIZE, 1], padding="SAME")
+    relu4 = tf.nn.relu(dense_layer1)
+    dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
+    prediction = tf.nn.softmax(dense_layer2)
+    final_pred =tf.argmax(tf.reshape(prediction, [BATCH_SIZE, NUMBER_OF_TARGETS]), axis=1)
 
-        dropout = tf.nn.dropout(maxpool3, 0.5)
-        # fully_connected1 = tf.contrib.layers.fully_connected(inputs=relu1, num_outputs=number_of_targets)
-        flat_layer1 = flatten(dropout)
-        dense_layer1 = attach_dense_layer(flat_layer1, FC_NEURONS)
-
-        # sigmoid2 = attach_sigmoid_layer(flat_layer1)
-
-
-
-        relu4 = tf.nn.relu(dense_layer1)
-        dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
-
-        prediction = tf.nn.softmax(dense_layer2)
-        final_pred = tf.argmax(prediction,axis=1)
-
-        # prediction = attach_sigmoid_layer(dense_layer2)
-
-
-
-
-        cost, optimizer = create_optimization(target_labels=target_labels,
-                                              dense_layer=dense_layer2)
+    cost, optimizer = create_optimization(target_labels=target_labels,
+                                          dense_layer=dense_layer2)
 
 
     return inputs, target_labels, cost, optimizer,final_pred,  prediction
@@ -237,20 +213,22 @@ def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target
     counter = Counter()
     if mode == "train":
         for epoch in range(epochs):
-            for data, label in data_set:
-                    err, _ =  sess.run([cost, optimizer],feed_dict={inputs: data, target_labels: label})
-                    print "error rate:", str(err)
-                    step += 1
-                    if step % SAVING_INTERVAL == 0:
-                        print "saving model..."
-                        saver.save(sess, model_save_path + model_name)
-                        print "model saved"
-                        counter.update([predict(data, label, inputs, final_pred, prediction)])
-                        show_stats(counter)
+            for batch in data_set:
+                data, label = batch[0], batch[1]
+                err, _ = sess.run([cost, optimizer], feed_dict={inputs: data, target_labels: label})
+                print "error rate:", str(err)
+                step += 1
+                if step % SAVING_INTERVAL == 0:
+                    print "saving model..."
+                    saver.save(sess, model_save_path + model_name)
+                    print "model saved"
+                    counter.update(predict(data, label, inputs, final_pred, prediction))
+                    show_stats(counter)
 
     elif mode == "test":
-        for data, label in data_set:
-            counter.update([predict(data, label, inputs, final_pred, prediction)])
+        for batch in data_set:
+            data, label = batch[0], batch[1]
+            counter.update(predict(data, label, inputs, final_pred, prediction))
             show_stats(counter)
     else:
         raise Exception("invalid mode")

@@ -10,6 +10,9 @@ def matlab_file_to_cad(matlab_file_path):
 
 
 def prepare_data_set(dataset_dir, batch_size, channels, limit=None, balanced=True, fuzzing_mode=False):
+    cad_vector =[]
+    label_vector = []
+    counter = 0
     labels = os.listdir(dataset_dir)
     data_set_sizes = [len(os.listdir(os.path.join(dataset_dir, label))) for label in labels]
     data_set_sizes_all_equal = len(set(data_set_sizes)) == 1
@@ -25,8 +28,17 @@ def prepare_data_set(dataset_dir, batch_size, channels, limit=None, balanced=Tru
                 # NEVER SET THIS FLAG TRUE unless you know what you're doing
                 l[i] = randint(0, len(labels) - 1)
             cad = matlab_file_to_cad(os.path.join(dataset_dir, label, raw_data_path))
-            cad = [cad.reshape(cad.shape[0], cad.shape[1], cad.shape[2], channels)] * batch_size
-            yield [cad, [l] * batch_size]
+            cad = cad.reshape(cad.shape[0], cad.shape[1], cad.shape[2], channels)
+            counter +=1
+            cad_vector.append(cad)
+            label_vector.append(l)
+                #batch.append[cad,[l]]
+            if counter % batch_size == 0:
+
+                batch = np.array(cad_vector), np.array(label_vector)
+                yield batch
+                cad_vector = []
+                label_vector = []
 
 
 def prepare_data_set_smart_wrapper(dataset_dir, batch_size, channels, limit=None, balanced=True, fuzzing_mode=False):
