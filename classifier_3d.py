@@ -59,7 +59,7 @@ LEARNING_RATE = BATCH_SIZE * 0.0001
 
 TARGET_ERROR_RATE = 0.001
 
-NUMBER_OF_TARGETS = 2
+NUMBER_OF_TARGETS = 10
 
 LIMIT = 2500
 
@@ -131,7 +131,8 @@ def smart_data_fetcher(dump_path):
 def predict(data, label, inputs, final_pred, prediction, mode):
 
     class_pred, raw_pred = sess.run([final_pred,prediction], feed_dict={inputs: data})
-    print "raw prediction", raw_pred
+    print "labels:", label
+    print "raw prediction:", raw_pred
     print "Predict class:",class_pred
     if mode == "test":
         return [label[0][class_pred[0]] == 1]
@@ -351,17 +352,18 @@ if __name__ == "__main__":
     mode, network = parse_flags()
 
     network_builder = build_concat3dconv_cvnn if network.startswith("concat") else build_3dconv_cvnn
-    LEARNING_RATE = LEARNING_RATE * 10 if network.startswith("concat") else LEARNING_RATE
+    LEARNING_RATE = LEARNING_RATE / 10 if network.startswith("concat") else LEARNING_RATE
+
 
     if mode == "train":
         inputs, target_labels, cost, optimizer, final_pred, prediction = network_builder(mode)
         print "Train Dataset"
-        data_set = create_dataset("train_cad")
+        data_set = create_dataset("train_cad_10.tar.gz")
         with tf.Session() as sess:
             run_session(data_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS, network)
     else:
         inputs, target_labels, final_pred, prediction = network_builder(mode)
         print "Test Dataset"
-        data_set = create_dataset("test_cad")
+        data_set = create_dataset("test_cad_10.tar.gz")
         with tf.Session() as sess:
             run_session(data_set, [], [], final_pred, prediction, inputs, target_labels, mode, EPOCHS, network)
