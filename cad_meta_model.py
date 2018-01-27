@@ -40,8 +40,10 @@ def predict_index(model, raw_pred_reg, raw_pred_concat):
 
 if __name__ == "__main__":
 
-    with open("desicion_tree_training_set2.json") as f:
-        decision_tree_dataset = load(f)
+    machine_learning_data_set_path = "decision_tree_training_set_real.json"
+    if os.path.exists(machine_learning_data_set_path):
+        with open(machine_learning_data_set_path) as f:
+            decision_tree_dataset = load(f)
 
     forest = train_high_level_model(decision_tree_dataset, RandomForestClassifier())
     tree = train_high_level_model(decision_tree_dataset, DecisionTreeClassifier())
@@ -117,12 +119,11 @@ if __name__ == "__main__":
         decision_tree_dataset["concat_pred"].append(list(raw_pred_concat))
         decision_tree_dataset["labels"].append(np.argmax(label[0]))
 
-        # decision_tree_dataset_counter += 1
-        # if decision_tree_dataset_counter % 3 == 0:
-        #     print "saving decision tree dataset", len(decision_tree_dataset["labels"])
-        #     with open("desicion_tree_training_set2.json", "wb") as f:
-        #         dump(decision_tree_dataset, f)
-        # print "Average Prediction:"
+        decision_tree_dataset_counter += 1
+        if decision_tree_dataset_counter % 3 == 0:
+            print "saving decision tree dataset".upper(), len(decision_tree_dataset["labels"])
+            with open("decision_tree_training_set_real.json", "wb") as f:
+                dump(decision_tree_dataset, f)
 
         naive_counter.update([label[0][average_prediction_vectors([raw_pred_reg, raw_pred_concat])] == 1])
         print "NAIVE AVERAGING"
@@ -134,3 +135,4 @@ if __name__ == "__main__":
 
         print "MACHINE LEARNING PREDICTION"
         show_stats(model_counter)
+        print "\n" * 2
