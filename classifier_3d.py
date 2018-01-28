@@ -15,11 +15,11 @@ TIRE_2_CONV_OUTPUT = 30
 
 TIRE_3_CONV_OUTPUT = TIRE_2_CONV_OUTPUT
 
-EPOCHS = 50
+EPOCHS = 30 #need to be 30
 
 WINDOWS_SIZE = 2
 
-SAVING_INTERVAL = 100
+SAVING_INTERVAL = 1 #need to be 1000
 
 MEAN = 0.0
 
@@ -61,7 +61,7 @@ TARGET_ERROR_RATE = 0.001
 
 NUMBER_OF_TARGETS = 10
 
-LIMIT = 5000
+LIMIT = 5000 # need to be 5000
 
 FC_NEURONS = 2048 # need to be 2048
 
@@ -325,11 +325,13 @@ def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target
     step = 1
     counter = Counter()
     if mode == "train":
+        epoch_err = []
         for epoch in range(epochs):
+
             for batch in data_set:
                 data, label = batch[0], batch[1]
                 err, _ = sess.run([cost, optimizer], feed_dict={inputs: data, target_labels: label})
-                print "regular 10 error rate:", str(err)
+                print network ," -error rate:", str(err)
                 step += 1
                 if step % SAVING_INTERVAL == 0:
                     print "epoch:", epoch
@@ -338,7 +340,12 @@ def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target
                     print "model saved"
                     counter.update(predict(data, label, inputs, final_pred, prediction, mode))
                     show_stats(counter)
-
+            epoch_err.append(str(err))
+        print network
+        for i, ep_err in enumerate(epoch_err):
+            print "Epoch number: ", i ,"Error ratt:",ep_err
+        #print "list of epoch error\n"
+        #print epoch_err
     elif mode == "test":
         for batch in data_set:
             data, label = batch[0], batch[1]
