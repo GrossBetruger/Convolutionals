@@ -19,7 +19,7 @@ EPOCHS = 30 #need to be 30
 
 WINDOWS_SIZE = 2
 
-SAVING_INTERVAL = 1 #need to be 1000
+SAVING_INTERVAL = 100 #need to be 1000
 
 MEAN = 0.0
 
