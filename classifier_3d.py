@@ -9,17 +9,17 @@ import pickle
 from collections import Counter
 import numpy as np
 
-TIRE_1_CONV_OUTPUT = 5
+TIRE_1_CONV_OUTPUT = 20
 
-TIRE_2_CONV_OUTPUT = 5
+TIRE_2_CONV_OUTPUT = 30
 
 TIRE_3_CONV_OUTPUT = TIRE_2_CONV_OUTPUT
 
-EPOCHS = 10
+EPOCHS = 50
 
 WINDOWS_SIZE = 2
 
-SAVING_INTERVAL = 5
+SAVING_INTERVAL = 100
 
 MEAN = 0.0
 
@@ -51,7 +51,7 @@ CAD_HEIGHT = 30
 
 CAD_DEPTH = 30
 
-OUTPUT_SIZE = 8 # need to be 64
+OUTPUT_SIZE = 64 # need to be 64
 
 BATCH_SIZE = 12
 
@@ -61,9 +61,9 @@ TARGET_ERROR_RATE = 0.001
 
 NUMBER_OF_TARGETS = 10
 
-LIMIT = 2500
+LIMIT = 5000
 
-FC_NEURONS = 50 # need to be 2048
+FC_NEURONS = 2048 # need to be 2048
 
 COST_FUNCTION = "cross"  #cross/sqr
 
@@ -131,7 +131,7 @@ def smart_data_fetcher(dump_path):
 def predict(data, label, inputs, final_pred, prediction, mode):
 
     class_pred, raw_pred = sess.run([final_pred,prediction], feed_dict={inputs: data})
-    print "labels:", label
+    #print "labels:", label
     print "raw prediction:", raw_pred
     print "Predict class:",class_pred
     if mode == "test":
@@ -329,7 +329,7 @@ def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target
             for batch in data_set:
                 data, label = batch[0], batch[1]
                 err, _ = sess.run([cost, optimizer], feed_dict={inputs: data, target_labels: label})
-                print "error rate:", str(err)
+                print "regular 10 error rate:", str(err)
                 step += 1
                 if step % SAVING_INTERVAL == 0:
                     print "epoch:", epoch
