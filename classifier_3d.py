@@ -68,6 +68,11 @@ FC_NEURONS = 50 # need to be 2048
 
 COST_FUNCTION = "cross"  #cross/sqr
 
+try:
+    from local_settings import *
+except ImportError:
+    pass
+
 
 def flatten(input_layer):
     input_size = input_layer.get_shape().as_list()
