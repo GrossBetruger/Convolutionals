@@ -65,6 +65,18 @@ def run_model(data, label, network, model_path, counter):
     return raw_pred
 
 
+def predict_many_metamodels(metamodels, raw_pred_reg, raw_pred_aug, raw_pred_concat, label):
+    for model, name, metamodel_counter in metamodels:
+        metamodel_predicted_index = predict_index(model, raw_pred_reg, raw_pred_aug,
+                                                            raw_pred_concat)
+        print name, "predicted index:", metamodel_predicted_index
+        print "true label index", np.argmax(label[0])
+        metamodel_counter.update([label[0][metamodel_predicted_index] == 1])
+
+        print "\nMACHINE LEARNING PREDICTION, meta model name:", name
+        show_stats(metamodel_counter)
+        print "\n" * 2
+
 
 if __name__ == "__main__":
     try:
@@ -75,12 +87,12 @@ if __name__ == "__main__":
     machine_learning_data_set_path = "decision_tree_training_set_real_with_aug.json"
     if os.path.exists(machine_learning_data_set_path):
         with open(machine_learning_data_set_path) as f:
-            decision_tree_dataset = load(f)
+            meta_model_dataset = load(f)
 
-    forest = train_high_level_model(decision_tree_dataset, RandomForestClassifier())
-    tree = train_high_level_model(decision_tree_dataset, DecisionTreeClassifier())
-    logistic_regression = train_high_level_model(decision_tree_dataset, LogisticRegression())
-    svm = train_high_level_model(decision_tree_dataset, SVC())
+    forest = train_high_level_model(meta_model_dataset, RandomForestClassifier())
+    tree = train_high_level_model(meta_model_dataset, DecisionTreeClassifier())
+    logistic_regression = train_high_level_model(meta_model_dataset, LogisticRegression())
+    svm = train_high_level_model(meta_model_dataset, SVC())
 
     print "done training"
     mode = "test"
@@ -92,9 +104,12 @@ if __name__ == "__main__":
     data_aug_counter = Counter()
     concat_counter = Counter()
     naive_counter = Counter()
-    model_counter = Counter()
+    forest_counter = Counter()
+    tree_counter = Counter()
+    logistic_regression_counter = Counter()
+    svm_counter = Counter()
 
-    decision_tree_dataset = {"regular_pred": [],
+    meta_model_dataset = {"regular_pred": [],
                              "augmented_pred": [],
                                "concat_pred": [],
                                "labels": []}
@@ -111,25 +126,24 @@ if __name__ == "__main__":
         raw_pred_concat = run_model(data, label, build_concat3dconv_cvnn, "model_conv3dconcat10_v1", concat_counter)
 
 
-        decision_tree_dataset["regular_pred"].append(list(raw_pred_reg))
-        decision_tree_dataset["augmented_pred"].append(list(raw_pred_aug))
-        decision_tree_dataset["concat_pred"].append(list(raw_pred_concat))
-        decision_tree_dataset["labels"].append(np.argmax(label[0]))
+        meta_model_dataset["regular_pred"].append(list(raw_pred_reg))
+        meta_model_dataset["augmented_pred"].append(list(raw_pred_aug))
+        meta_model_dataset["concat_pred"].append(list(raw_pred_concat))
+        meta_model_dataset["labels"].append(np.argmax(label[0]))
 
         decision_tree_dataset_counter += 1
         if decision_tree_dataset_counter % 3 == 0:
-            print "\nsaving decision tree dataset".upper(), len(decision_tree_dataset["labels"])
+            print "\nsaving decision tree dataset".upper(), len(meta_model_dataset["labels"])
             with open(save_meta_model_path, "wb") as f:
-                dump(decision_tree_dataset, f)
+                dump(meta_model_dataset, f)
 
-        naive_counter.update([label[0][average_prediction_vectors([raw_pred_reg, raw_pred_concat])] == 1])
+        naive_counter.update([label[0][average_prediction_vectors([raw_pred_reg, raw_pred_aug, raw_pred_concat])] == 1])
         print "\nNAIVE AVERAGING"
         show_stats(naive_counter)
-        model_predicted_index = predict_index(logistic_regression, raw_pred_reg, raw_pred_aug, raw_pred_concat)
-        print "tree predicted index", model_predicted_index
-        print "true label index", np.argmax(label[0])
-        model_counter.update([label[0][model_predicted_index] == 1])
 
-        print "\nMACHINE LEARNING PREDICTION"
-        show_stats(model_counter)
-        print "\n" * 2
+
+        predict_many_metamodels([(forest, "random forest", forest_counter),
+                                 (tree, "decision tree", tree_counter),
+                                 (logistic_regression, "logistic regression", logistic_regression_counter),
+                                 (svm, "support vector machine", svm_counter)],
+                                raw_pred_reg, raw_pred_aug, raw_pred_concat, label)
