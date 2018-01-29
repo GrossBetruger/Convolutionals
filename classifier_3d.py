@@ -9,9 +9,10 @@ import pickle
 from collections import Counter
 import numpy as np
 
-TIRE_1_CONV_OUTPUT = 20
 
-TIRE_2_CONV_OUTPUT = 30
+TIRE_1_CONV_OUTPUT = 5
+
+TIRE_2_CONV_OUTPUT = 5
 
 TIRE_3_CONV_OUTPUT = TIRE_2_CONV_OUTPUT
 
@@ -19,7 +20,7 @@ EPOCHS = 30 #need to be 30
 
 WINDOWS_SIZE = 2
 
-SAVING_INTERVAL = 100 #need to be 1000
+SAVING_INTERVAL = 10 #need to be 1000
 
 MEAN = 0.0
 
@@ -59,11 +60,11 @@ LEARNING_RATE = BATCH_SIZE * 0.0001
 
 TARGET_ERROR_RATE = 0.001
 
-NUMBER_OF_TARGETS = 10
+NUMBER_OF_TARGETS = 40
 
 LIMIT = 5000 # need to be 5000
 
-FC_NEURONS = 2048 # need to be 2048
+FC_NEURONS = 50 # need to be 2048
 
 COST_FUNCTION = "cross"  #cross/sqr
 
@@ -365,12 +366,12 @@ if __name__ == "__main__":
     if mode == "train":
         inputs, target_labels, cost, optimizer, final_pred, prediction = network_builder(mode)
         print "Train Dataset"
-        data_set = create_dataset("train_cad_10.tar.gz")
+        data_set = create_dataset("train_cad_40.tar.gz")
         with tf.Session() as sess:
             run_session(data_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS, network)
     else:
         inputs, target_labels, final_pred, prediction = network_builder(mode)
         print "Test Dataset"
-        data_set = create_dataset("test_cad_10.tar.gz")
+        data_set = create_dataset("test_cad_40.tar.gz")
         with tf.Session() as sess:
             run_session(data_set, [], [], final_pred, prediction, inputs, target_labels, mode, EPOCHS, network)
