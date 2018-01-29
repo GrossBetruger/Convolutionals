@@ -84,17 +84,19 @@ if __name__ == "__main__":
     except IndexError:
         print "USAGE: python cad_meta_model.py save_meta_model_path"
 
-    machine_learning_data_set_path = "decision_tree_training_set_real_with_aug.json"
+    machine_learning_data_set_path = "decision_tree_training_set_real_with_aug99.json"
     if os.path.exists(machine_learning_data_set_path):
         with open(machine_learning_data_set_path) as f:
             meta_model_dataset = load(f)
+    try:
+        forest = train_high_level_model(meta_model_dataset, RandomForestClassifier())
+        tree = train_high_level_model(meta_model_dataset, DecisionTreeClassifier())
+        logistic_regression = train_high_level_model(meta_model_dataset, LogisticRegression())
+        svm = train_high_level_model(meta_model_dataset, SVC())
+        print "done training"
+    except NameError:
+        print "\nno data set found for meta model, running to create one...\n".upper()
 
-    forest = train_high_level_model(meta_model_dataset, RandomForestClassifier())
-    tree = train_high_level_model(meta_model_dataset, DecisionTreeClassifier())
-    logistic_regression = train_high_level_model(meta_model_dataset, LogisticRegression())
-    svm = train_high_level_model(meta_model_dataset, SVC())
-
-    print "done training"
     mode = "test"
 
     print "Test Dataset"
@@ -141,9 +143,11 @@ if __name__ == "__main__":
         print "\nNAIVE AVERAGING"
         show_stats(naive_counter)
 
-
-        predict_many_metamodels([(forest, "random forest", forest_counter),
-                                 (tree, "decision tree", tree_counter),
-                                 (logistic_regression, "logistic regression", logistic_regression_counter),
-                                 (svm, "support vector machine", svm_counter)],
-                                raw_pred_reg, raw_pred_aug, raw_pred_concat, label)
+        try:
+            predict_many_metamodels([(forest, "random forest", forest_counter),
+                                     (tree, "decision tree", tree_counter),
+                                     (logistic_regression, "logistic regression", logistic_regression_counter),
+                                     (svm, "support vector machine", svm_counter)],
+                                    raw_pred_reg, raw_pred_aug, raw_pred_concat, label)
+        except NameError:
+            pass
