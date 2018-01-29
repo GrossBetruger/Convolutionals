@@ -9,6 +9,7 @@ import pickle
 from collections import Counter
 import numpy as np
 
+AUGMENTED_VOXELS = 100
 
 TIRE_1_CONV_OUTPUT = 5
 
@@ -126,7 +127,7 @@ def smart_data_fetcher(dump_path):
         return unserialize(dump_path)
     else:
         print "creating training set..."
-        training_set = list(prepare_data_set("train_cad", BATCH_SIZE, CHANNELS))
+        training_set = list(prepare_data_set("train_cad", BATCH_SIZE, CHANNELS, num_of_voxels_to_augment=AUGMENTED_VOXELS))
         print "shuffling data set"
         shuffle(training_set)
         print "caching data set"
@@ -215,7 +216,6 @@ def build_3dconv_cvnn(mode):
     flat_layer1 = flatten(dropout)
     dense_layer1 = attach_dense_layer(flat_layer1, FC_NEURONS)
     relu4 = tf.nn.relu(dense_layer1)
-    print "relu", relu4
     if mode == "test":
         relu4 =tf.reduce_max(relu4, axis=0, keep_dims=True)
         dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
@@ -299,7 +299,6 @@ def build_concat3dconv_cvnn(mode):
     flat_layer1 = flatten(dropout3)
     dense_layer1 = attach_dense_layer(flat_layer1, FC_NEURONS)
     relu4 = tf.nn.relu(dense_layer1)
-    print "relu", relu4
     if mode == "test":
         relu4 =tf.reduce_max(relu4, axis=0, keep_dims=True)
         dense_layer2 = attach_dense_layer(relu4, NUMBER_OF_TARGETS)
@@ -371,12 +370,12 @@ if __name__ == "__main__":
     if mode == "train":
         inputs, target_labels, cost, optimizer, final_pred, prediction = network_builder(mode)
         print "Train Dataset"
-        data_set = create_dataset("train_cad_40.tar.gz")
+        data_set = create_dataset("train_cad_10.tar.gz")
         with tf.Session() as sess:
             run_session(data_set, cost, optimizer, final_pred, prediction, inputs, target_labels, mode, EPOCHS, network)
     else:
         inputs, target_labels, final_pred, prediction = network_builder(mode)
         print "Test Dataset"
-        data_set = create_dataset("test_cad_40.tar.gz")
+        data_set = create_dataset("test_cad_10.tar.gz")
         with tf.Session() as sess:
             run_session(data_set, [], [], final_pred, prediction, inputs, target_labels, mode, EPOCHS, network)
