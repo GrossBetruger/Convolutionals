@@ -28,7 +28,7 @@ $ pip install -r requirements.txt
 $ python classifier_3d.py train regular_network
 ```
 
-* regular_network can be replaces with any other name (that will later be used to reference this model)
+* regular_network can be replaced with any other name (that will later be used to reference this model)
 
 * to train concat model - do the same but with a name starting with 'concat'
 
@@ -36,11 +36,31 @@ $ python classifier_3d.py train regular_network
 $ python classifier_3d.py train concat_network
 ```
 
-* to test your network run it with in test mode (referring to it by the same name)
+* to test your network run it in test mode (referring to it by the same name)
 
 ```shell
 $ python classifier_3d.py test regular_network
 ```
+
+### Data Augmentation 
+
+* the module cad_data_set_generator.py also supports data augmentation:
+
+```python
+def prepare_data_set(dataset_dir, batch_size, channels, limit=None,
+                     balanced=True, fuzzing_mode=False, num_of_voxels_to_augment=0):
+```
+
+* the 'num_of_voxels_to_augment' parameter sets the number of voxels to randomize in each CAD
+
+* it defaults to 0, before training a network on augmented data it should be changed (to something in the order of a few hundreds)
+
+* it's best to set it using the constant 'AUGMENTED_VOXELS' in classifier_3d.py
+
+```python
+AUGMENTED_VOXELS = 200
+```
+
 
 ### Running a meta classifier on a few models 
 
@@ -56,8 +76,7 @@ raw_pred_aug = run_model(data, label, build_3dconv_cvnn, "model_conv3dregular10_
 raw_pred_concat = run_model(data, label, build_concat3dconv_cvnn, "model_conv3dconcat10_v1", concat_counter)
 ```
 
-* the two first models must be trained with the regular cnn network and third should be trained as concatenated network (see above)
-
+* the first two models must be trained with the regular cnn network (one should be trained with augmented data - see above) and the third must be trained as concatenated network (see above)
 
 * after that - train the meta model as follows:
 
@@ -74,3 +93,5 @@ machine_learning_data_set_path = "meta_model.data"
 ```
 
 * then run it again, now you will also get results from the meta model (meta model will have 4 predictors - random forest, decision tree, logistic regression and svm)
+
+* if you want to run the meta model on a different number of networks (or different kinds of networks) you should change the code in 'cad_meta_model.py' accordingly
