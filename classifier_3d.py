@@ -1,15 +1,13 @@
 from random import shuffle
 from cad_data_set_generator import prepare_data_set, prepare_data_set_smart_wrapper
-from functools import reduce
-import operator
 import tensorflow as tf
 import os
 import sys
 import pickle
 from collections import Counter
-import numpy as np
 
-AUGMENTED_VOXELS = 100
+
+AUGMENTED_VOXELS = 0
 
 TIRE_1_CONV_OUTPUT = 5
 
