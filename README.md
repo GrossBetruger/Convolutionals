@@ -1,8 +1,10 @@
+### CAD CLASSIFIER - 3d CNN
+
 <div align="center">
   <img src="http://vision.cs.princeton.edu/projects/2014/ModelNet/data/apple//apple_000000247/apple_000000247_thumb.jpg"><br><br>
 </div>
 
--
+
 ## Installation
 
 * Requires python 2.7.*
