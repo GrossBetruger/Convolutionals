@@ -320,10 +320,10 @@ def build_concat3dconv_cvnn(mode):
 def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target_labels, mode, epochs, network):
     tf.global_variables_initializer().run()
     saver = tf.train.Saver()
-    model_save_path = "./model_conv3d{}_v1/".format(network)
+    model_save_path = network
     model_name = 'CAD_Classifier'
 
-    if os.path.exists(model_save_path + 'checkpoint'):
+    if os.path.exists(os.path.join(model_save_path, 'checkpoint')):
         saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
 
     print_model(sess)
@@ -341,7 +341,7 @@ def run_session(data_set, cost, optimizer,final_pred, prediction, inputs, target
                 if step % SAVING_INTERVAL == 0:
                     print "epoch:", epoch
                     print "saving model..."
-                    saver.save(sess, model_save_path + model_name)
+                    saver.save(sess, os.path.join(model_save_path, model_name))
                     print "model saved"
                     counter.update(predict(data, label, inputs, final_pred, prediction, mode))
                     show_stats(counter)
